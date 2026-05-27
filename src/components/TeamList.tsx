@@ -1,6 +1,9 @@
-import { SKILL_LABELS, type Team } from "../lib/database.types";
+import { useT } from "../lib/i18n";
+import type { Team } from "../lib/database.types";
 
 export default function TeamList({ teams }: { teams: Team[] | null }) {
+  const t = useT();
+
   if (teams === null) {
     return (
       <div className="card divide-y divide-neutral-100">
@@ -21,7 +24,7 @@ export default function TeamList({ teams }: { teams: Team[] | null }) {
   if (active.length === 0) {
     return (
       <div className="card flex items-center justify-center p-10 text-sm text-neutral-500">
-        Noch keine Teams angemeldet.
+        {t("listEmptyCard")}
       </div>
     );
   }
@@ -51,16 +54,22 @@ export default function TeamList({ teams }: { teams: Team[] | null }) {
 }
 
 function SkillBadge({ level }: { level: Team["skill_level"] }) {
+  const t = useT();
   const styles: Record<Team["skill_level"], string> = {
     beginner: "bg-emerald-50 text-emerald-700 ring-emerald-100",
     intermediate: "bg-amber-50 text-amber-700 ring-amber-100",
     advanced: "bg-rose-50 text-rose-700 ring-rose-100",
   };
+  const labels: Record<Team["skill_level"], string> = {
+    beginner: t("skillBeginner"),
+    intermediate: t("skillIntermediate"),
+    advanced: t("skillAdvanced"),
+  };
   return (
     <span
       className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ring-1 ring-inset ${styles[level]}`}
     >
-      {SKILL_LABELS[level]}
+      {labels[level]}
     </span>
   );
 }

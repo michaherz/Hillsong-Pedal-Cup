@@ -1,6 +1,8 @@
+import { useT } from "../lib/i18n";
 import { TOURNAMENT } from "../lib/tournament";
 
 export default function VenueCard() {
+  const t = useT();
   return (
     <div className="card overflow-hidden">
       <div className="relative h-48 sm:h-60">
@@ -11,7 +13,7 @@ export default function VenueCard() {
         />
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-4 text-white">
           <p className="text-[11px] uppercase tracking-wider opacity-80">
-            Venue
+            {t("venueLabel")}
           </p>
           <p className="text-lg font-semibold leading-tight">
             {TOURNAMENT.venue.name}
@@ -25,8 +27,10 @@ export default function VenueCard() {
             {TOURNAMENT.venue.address}
           </p>
           <p className="mt-2 text-sm text-neutral-500">
-            <span className="font-medium text-neutral-700">Padel-Plätze:</span>{" "}
-            {TOURNAMENT.venue.courtsHint}
+            <span className="font-medium text-neutral-700">
+              {t("courtsLabel")}
+            </span>{" "}
+            {t("courtsHint")}
           </p>
         </div>
 
@@ -38,15 +42,15 @@ export default function VenueCard() {
         >
           <img
             src="/site-map.png"
-            alt="Lageplan Pineapple Park — Padel-Plätze in Bereich 6"
+            alt={t("siteMapTitle")}
             className="w-full bg-white"
           />
           <div className="flex items-center justify-between border-t border-neutral-100 bg-neutral-50 px-3 py-2 text-xs">
             <span className="font-medium text-neutral-700">
-              Lageplan Pineapple Park
+              {t("siteMapTitle")}
             </span>
             <span className="text-neutral-500 group-hover:text-court-600">
-              Vergrößern →
+              {t("enlarge")}
             </span>
           </div>
         </a>
@@ -58,7 +62,7 @@ export default function VenueCard() {
             rel="noreferrer"
             className="btn-primary"
           >
-            Apple Karten
+            {t("appleMaps")}
           </a>
           <a
             href={TOURNAMENT.venue.googleMapsUrl}
@@ -66,7 +70,7 @@ export default function VenueCard() {
             rel="noreferrer"
             className="btn-secondary"
           >
-            Google Maps
+            {t("googleMaps")}
           </a>
         </div>
       </div>

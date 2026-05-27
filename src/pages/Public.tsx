@@ -1,14 +1,17 @@
 import { useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { TOURNAMENT } from "../lib/tournament";
-import { SKILL_LABELS, type SkillLevel } from "../lib/database.types";
+import { type SkillLevel } from "../lib/database.types";
+import { formatEventDate, useLang, useT } from "../lib/i18n";
 import { useSettings, useTeams } from "../lib/hooks";
 import TeamList from "../components/TeamList";
 import VenueCard from "../components/VenueCard";
+import InfoCards from "../components/InfoCards";
 
 const SKILL_OPTIONS: SkillLevel[] = ["beginner", "intermediate", "advanced"];
 
 export default function Public() {
+  const t = useT();
   const teams = useTeams();
   const settings = useSettings();
   const registrationOpen = settings?.registration_open ?? null;
@@ -17,6 +20,15 @@ export default function Public() {
     () => (teams ?? []).filter((t) => t.status === "active").length,
     [teams],
   );
+
+  const subtitle =
+    teams === null
+      ? t("listLoading")
+      : activeCount === 0
+        ? t("listEmpty")
+        : activeCount === 1
+          ? t("listCountOne", { count: activeCount })
+          : t("listCountMany", { count: activeCount });
 
   return (
     <div className="min-h-full">
@@ -32,27 +44,22 @@ export default function Public() {
         )}
 
         <section className="mt-10">
-          <SectionHeader
-            title="Angemeldete Teams"
-            subtitle={
-              teams === null
-                ? "Wird geladen…"
-                : activeCount === 0
-                  ? "Noch niemand angemeldet — sei das erste Team."
-                  : `${activeCount} ${activeCount === 1 ? "Team" : "Teams"} dabei`
-            }
-          />
+          <SectionHeader title={t("listHeading")} subtitle={subtitle} />
           <TeamList teams={teams} />
         </section>
 
         <section className="mt-10">
-          <SectionHeader title="Wo & Wann" />
+          <InfoCards />
+        </section>
+
+        <section className="mt-10">
+          <SectionHeader title={t("sectionDescription")} />
           <VenueCard />
         </section>
       </main>
 
       <footer className="border-t border-neutral-200 bg-white/60 py-6 text-center text-xs text-neutral-500">
-        Padel Cup MUC · {TOURNAMENT.date} · {TOURNAMENT.venue.name}
+        Padel Cup MUC · {TOURNAMENT.venue.name}
       </footer>
     </div>
   );
@@ -65,6 +72,8 @@ function Hero({
   teamCount: number;
   registrationOpen: boolean | null;
 }) {
+  const t = useT();
+  const { lang } = useLang();
   const dotClass =
     registrationOpen === null
       ? "bg-white/40 animate-pulse"
@@ -73,10 +82,10 @@ function Hero({
         : "bg-neutral-400";
   const label =
     registrationOpen === null
-      ? "Lädt"
+      ? t("regLoading")
       : registrationOpen
-        ? "Anmeldung offen"
-        : "Anmeldung geschlossen";
+        ? t("regOpen")
+        : t("regClosed");
   return (
     <header className="relative overflow-hidden bg-gradient-to-b from-court-600 to-court-800 px-5 pb-14 pt-16 text-white sm:pt-24">
       <div
@@ -103,14 +112,20 @@ function Hero({
         </div>
         <div className="mt-3 space-y-0.5 text-base text-white/80 sm:text-xl">
           <p>
-            {TOURNAMENT.date} · {TOURNAMENT.startTime} Uhr
+            {formatEventDate(TOURNAMENT.dateISO, lang)} · {TOURNAMENT.startTime}
           </p>
           <p>{TOURNAMENT.venue.name}</p>
         </div>
         <div className="mt-6 flex flex-wrap gap-3 text-sm">
-          <Stat label="Teams" value={teamCount.toString()} />
-          <Stat label="Plätze" value={TOURNAMENT.courts.toString()} />
-          <Stat label="Stunden" value={TOURNAMENT.durationHours.toString()} />
+          <Stat label={t("statTeams")} value={teamCount.toString()} />
+          <Stat
+            label={t("statCourts")}
+            value={TOURNAMENT.courts.toString()}
+          />
+          <Stat
+            label={t("statHours")}
+            value={TOURNAMENT.durationHours.toString()}
+          />
         </div>
       </div>
     </header>
@@ -144,12 +159,12 @@ function SectionHeader({
 }
 
 function ClosedNotice({ teamCount }: { teamCount: number }) {
+  const t = useT();
   return (
     <div className="card relative z-10 -mt-6 p-6 sm:-mt-10 sm:p-8">
-      <h2 className="text-lg font-semibold">Anmeldung geschlossen</h2>
+      <h2 className="text-lg font-semibold">{t("closedHeading")}</h2>
       <p className="mt-1 text-sm text-neutral-600">
-        {teamCount} Teams sind dabei. Spielplan und Live-Tabelle erscheinen hier
-        am Turniertag.
+        {t("closedBody", { count: teamCount })}
       </p>
     </div>
   );
@@ -165,6 +180,7 @@ function LoadingNotice() {
 }
 
 function RegistrationForm() {
+  const t = useT();
   const [teamName, setTeamName] = useState("");
   const [player1, setPlayer1] = useState("");
   const [player2, setPlayer2] = useState("");
@@ -172,6 +188,12 @@ function RegistrationForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  const skillLabel: Record<SkillLevel, string> = {
+    beginner: t("skillBeginner"),
+    intermediate: t("skillIntermediate"),
+    advanced: t("skillAdvanced"),
+  };
 
   const valid =
     teamName.trim().length >= 2 &&
@@ -204,20 +226,18 @@ function RegistrationForm() {
 
   return (
     <form onSubmit={submit} className="card relative z-10 -mt-6 p-6 sm:-mt-10 sm:p-8">
-      <h2 className="text-lg font-semibold">Team anmelden</h2>
-      <p className="mt-1 text-sm text-neutral-600">
-        Trage dein Team ein. Du siehst es danach direkt in der Liste.
-      </p>
+      <h2 className="text-lg font-semibold">{t("registerHeading")}</h2>
+      <p className="mt-1 text-sm text-neutral-600">{t("registerSubtitle")}</p>
 
       <div className="mt-5 space-y-4">
         <div>
           <label className="label" htmlFor="team_name">
-            Team-Name
+            {t("teamName")}
           </label>
           <input
             id="team_name"
             className="input"
-            placeholder="z.B. Smash Brothers"
+            placeholder={t("teamNamePh")}
             value={teamName}
             onChange={(e) => setTeamName(e.target.value)}
             maxLength={60}
@@ -228,12 +248,12 @@ function RegistrationForm() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="label" htmlFor="player_1">
-              Spieler 1
+              {t("player1")}
             </label>
             <input
               id="player_1"
               className="input"
-              placeholder="Vor- und Nachname"
+              placeholder={t("playerPh")}
               value={player1}
               onChange={(e) => setPlayer1(e.target.value)}
               maxLength={60}
@@ -242,12 +262,12 @@ function RegistrationForm() {
           </div>
           <div>
             <label className="label" htmlFor="player_2">
-              Spieler 2
+              {t("player2")}
             </label>
             <input
               id="player_2"
               className="input"
-              placeholder="Vor- und Nachname"
+              placeholder={t("playerPh")}
               value={player2}
               onChange={(e) => setPlayer2(e.target.value)}
               maxLength={60}
@@ -257,7 +277,7 @@ function RegistrationForm() {
         </div>
 
         <div>
-          <span className="label">Spielstärke</span>
+          <span className="label">{t("skillLabel")}</span>
           <div className="grid grid-cols-3 gap-2 rounded-xl bg-neutral-100 p-1">
             {SKILL_OPTIONS.map((opt) => (
               <button
@@ -270,7 +290,7 @@ function RegistrationForm() {
                     : "text-neutral-600 hover:text-neutral-900"
                 }`}
               >
-                {SKILL_LABELS[opt]}
+                {skillLabel[opt]}
               </button>
             ))}
           </div>
@@ -284,7 +304,7 @@ function RegistrationForm() {
       )}
       {success && (
         <p className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-emerald-100">
-          Team angemeldet. Wir sehen uns am 18.06.
+          {t("successMsg")}
         </p>
       )}
 
@@ -294,7 +314,7 @@ function RegistrationForm() {
           disabled={!valid || submitting}
           className="btn-primary"
         >
-          {submitting ? "Sende…" : "Team anmelden"}
+          {submitting ? t("submitting") : t("registerBtn")}
         </button>
       </div>
     </form>
