@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
+import { useEffect, useRef, useState } from "react";
+import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
 import type { Session } from "@supabase/supabase-js";
 import { ADMIN_EMAIL, supabase } from "../lib/supabase";
 import { type Team } from "../lib/database.types";
@@ -194,24 +194,52 @@ function RegistrationToggle({
 function PublicLinkCard({ url }: { url: string }) {
   const t = useT();
   const [copied, setCopied] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
   function copy() {
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }
+
+  function download() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "padel-cup-2026-qr.png";
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    }, "image/png");
+  }
+
   return (
     <div className="card flex items-center gap-4 p-5">
       <div className="rounded-lg bg-white p-2 ring-1 ring-neutral-200">
         <QRCodeSVG value={url || "https://"} size={72} />
       </div>
+      <QRCodeCanvas
+        value={url || "https://"}
+        size={1024}
+        marginSize={4}
+        ref={canvasRef}
+        style={{ display: "none" }}
+      />
       <div className="min-w-0 flex-1">
         <p className="text-xs uppercase tracking-wider text-neutral-500">
           {t("publicLink")}
         </p>
         <p className="mt-0.5 truncate text-sm font-medium">{url}</p>
-        <button onClick={copy} className="btn-ghost mt-2 -ml-2 px-2 text-xs">
-          {copied ? t("copied") : t("copy")}
-        </button>
+        <div className="mt-2 -ml-2 flex gap-1">
+          <button onClick={copy} className="btn-ghost px-2 text-xs">
+            {copied ? t("copied") : t("copy")}
+          </button>
+          <button onClick={download} className="btn-ghost px-2 text-xs">
+            {t("download")}
+          </button>
+        </div>
       </div>
     </div>
   );
