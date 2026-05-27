@@ -7,8 +7,10 @@ export const TOURNAMENT = {
   venue: {
     name: "Casa Padel Pineapple Park",
     address: "Paketposthalle, Alte Arnulfstraße 195–199, 80634 München",
-    mapsUrl: "https://maps.apple.com/?q=Casa+Padel+Pineapple+Park&address=Paketposthalle+Alte+Arnulfstrasse+195+80634+M%C3%BCnchen",
+    appleMapsUrl: "https://maps.apple/p/Xh8_-aZy2mFDUU",
+    googleMapsUrl: "https://share.google/Yk1nV9QDhDToISWf4",
     website: "https://casapadel.de",
+    courtsHint: "Bereich 6 (Padel Outdoor) — südwestlich der Paketposthalle",
   },
   courts: 2,
 } as const;

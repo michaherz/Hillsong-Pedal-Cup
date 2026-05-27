@@ -78,7 +78,7 @@ function Hero({
         ? "Anmeldung offen"
         : "Anmeldung geschlossen";
   return (
-    <header className="relative overflow-hidden bg-gradient-to-b from-court-600 to-court-800 px-5 pb-12 pt-16 text-white sm:pt-24">
+    <header className="relative overflow-hidden bg-gradient-to-b from-court-600 to-court-800 px-5 pb-14 pt-16 text-white sm:pt-24">
       <div
         className="absolute inset-0 opacity-20"
         style={{
@@ -91,13 +91,22 @@ function Hero({
           <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
           {label}
         </div>
-        <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-6xl">
-          Padel Cup MUC
-        </h1>
-        <p className="mt-3 text-lg text-white/80 sm:text-xl">
-          {TOURNAMENT.date} · {TOURNAMENT.startTime} Uhr ·{" "}
-          {TOURNAMENT.venue.name}
-        </p>
+        <div className="mt-4 flex items-center gap-4 sm:gap-6">
+          <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
+            Padel Cup MUC
+          </h1>
+          <img
+            src="/hillsong-logo.png"
+            alt="Hillsong"
+            className="h-14 w-14 shrink-0 sm:h-20 sm:w-20"
+          />
+        </div>
+        <div className="mt-3 space-y-0.5 text-base text-white/80 sm:text-xl">
+          <p>
+            {TOURNAMENT.date} · {TOURNAMENT.startTime} Uhr
+          </p>
+          <p>{TOURNAMENT.venue.name}</p>
+        </div>
         <div className="mt-6 flex flex-wrap gap-3 text-sm">
           <Stat label="Teams" value={teamCount.toString()} />
           <Stat label="Plätze" value={TOURNAMENT.courts.toString()} />
@@ -136,7 +145,7 @@ function SectionHeader({
 
 function ClosedNotice({ teamCount }: { teamCount: number }) {
   return (
-    <div className="-mt-6 card p-6 sm:-mt-10 sm:p-8">
+    <div className="card relative z-10 -mt-6 p-6 sm:-mt-10 sm:p-8">
       <h2 className="text-lg font-semibold">Anmeldung geschlossen</h2>
       <p className="mt-1 text-sm text-neutral-600">
         {teamCount} Teams sind dabei. Spielplan und Live-Tabelle erscheinen hier
@@ -148,7 +157,7 @@ function ClosedNotice({ teamCount }: { teamCount: number }) {
 
 function LoadingNotice() {
   return (
-    <div className="-mt-6 card p-6 sm:-mt-10 sm:p-8">
+    <div className="card relative z-10 -mt-6 p-6 sm:-mt-10 sm:p-8">
       <div className="h-4 w-40 animate-pulse rounded bg-neutral-100" />
       <div className="mt-3 h-3 w-64 animate-pulse rounded bg-neutral-100" />
     </div>
@@ -194,7 +203,7 @@ function RegistrationForm() {
   }
 
   return (
-    <form onSubmit={submit} className="-mt-6 card p-6 sm:-mt-10 sm:p-8">
+    <form onSubmit={submit} className="card relative z-10 -mt-6 p-6 sm:-mt-10 sm:p-8">
       <h2 className="text-lg font-semibold">Team anmelden</h2>
       <p className="mt-1 text-sm text-neutral-600">
         Trage dein Team ein. Du siehst es danach direkt in der Liste.
