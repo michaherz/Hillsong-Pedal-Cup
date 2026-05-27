@@ -7,6 +7,7 @@ import { useSettings, useTeams } from "../lib/hooks";
 import TeamList from "../components/TeamList";
 import VenueCard from "../components/VenueCard";
 import InfoCards from "../components/InfoCards";
+import LanguageToggle from "../components/LanguageToggle";
 
 const SKILL_OPTIONS: SkillLevel[] = ["beginner", "intermediate", "advanced"];
 
@@ -32,6 +33,7 @@ export default function Public() {
 
   return (
     <div className="min-h-full">
+      <LanguageToggle />
       <Hero teamCount={activeCount} registrationOpen={registrationOpen} />
 
       <main className="mx-auto max-w-3xl px-5 pb-24">
