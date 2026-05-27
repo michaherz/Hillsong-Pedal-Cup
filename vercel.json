@@ -1,3 +1,4 @@
 {
+  "installCommand": "npm ci --prefer-offline --no-audit",
   "rewrites": [{ "source": "/(.*)", "destination": "/" }]
 }
