@@ -1,5 +1,13 @@
 export type SkillLevel = "beginner" | "intermediate" | "advanced";
 
+export type TournamentPhase =
+  | "registration"
+  | "mexicano"
+  | "knockout"
+  | "finished";
+
+export type BracketPos = "sf1" | "sf2" | "final" | "third";
+
 export type Team = {
   id: string;
   team_name: string;
@@ -14,6 +22,9 @@ export type Match = {
   id: string;
   round: number;
   court: number;
+  wave: number | null;
+  phase: "mexicano" | "knockout";
+  bracket_pos: BracketPos | null;
   team_a_id: string | null;
   team_b_id: string | null;
   score_a: number | null;
@@ -27,6 +38,9 @@ export type Settings = {
   id: number;
   registration_open: boolean;
   tournament_format: string | null;
+  tournament_phase: TournamentPhase;
+  current_round: number;
+  total_courts: number;
   updated_at: string;
 };
 

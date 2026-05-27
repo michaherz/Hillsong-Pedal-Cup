@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import type { Team, Settings } from "../lib/database.types";
+import type { Match, Settings, Team } from "../lib/database.types";
 
 export function useTeams() {
   const [teams, setTeams] = useState<Team[] | null>(null);
@@ -91,3 +91,63 @@ export function useSettings() {
 
   return settings;
 }
+
+export function useMatches() {
+  const [matches, setMatches] = useState<Match[] | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    supabase
+      .from("matches")
+      .select("*")
+      .order("round", { ascending: true })
+      .order("wave", { ascending: true, nullsFirst: false })
+      .order("court", { ascending: true })
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) {
+          console.error("matches fetch", error);
+          setMatches([]);
+          return;
+        }
+        setMatches(data ?? []);
+      });
+
+    const channel = supabase
+      .channel("matches-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "matches" },
+        (payload) => {
+          setMatches((prev) => {
+            const list = prev ?? [];
+            if (payload.eventType === "INSERT") {
+              return [...list, payload.new as Match];
+            }
+            if (payload.eventType === "UPDATE") {
+              return list.map((m) =>
+                m.id === (payload.new as Match).id
+                  ? (payload.new as Match)
+                  : m,
+              );
+            }
+            if (payload.eventType === "DELETE") {
+              return list.filter(
+                (m) => m.id !== (payload.old as Match).id,
+              );
+            }
+            return list;
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      active = false;
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  return matches;
+}
+

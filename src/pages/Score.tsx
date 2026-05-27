@@ -3,9 +3,10 @@ import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
 import type { Session } from "@supabase/supabase-js";
 import { ADMIN_EMAIL, supabase } from "../lib/supabase";
 import { type Team } from "../lib/database.types";
-import { useSettings, useTeams } from "../lib/hooks";
+import { useMatches, useSettings, useTeams } from "../lib/hooks";
 import { TOURNAMENT } from "../lib/tournament";
 import { useT } from "../lib/i18n";
+import TournamentPanel from "../components/TournamentPanel";
 
 export default function Score() {
   const t = useT();
@@ -101,6 +102,7 @@ function Admin({ onSignOut }: { onSignOut: () => void }) {
   const t = useT();
   const teams = useTeams();
   const settings = useSettings();
+  const matches = useMatches();
   const publicUrl = typeof window !== "undefined" ? window.location.origin : "";
 
   return (
@@ -144,10 +146,13 @@ function Admin({ onSignOut }: { onSignOut: () => void }) {
           <AdminTeamTable teams={teams} />
         </section>
 
-        <section className="card p-6">
-          <h2 className="text-base font-semibold">{t("bracketHeading")}</h2>
-          <p className="mt-1 text-sm text-neutral-500">{t("bracketBody")}</p>
-        </section>
+        {settings && teams && matches && (
+          <TournamentPanel
+            teams={teams}
+            matches={matches}
+            settings={settings}
+          />
+        )}
       </main>
     </div>
   );
