@@ -1,5 +1,5 @@
 export const TOURNAMENT = {
-  name: "Padel Cup MUC",
+  name: "Padel Cup 2026",
   date: "Donnerstag, 18. Juni 2026",
   dateISO: "2026-06-18",
   startTime: "16:00",

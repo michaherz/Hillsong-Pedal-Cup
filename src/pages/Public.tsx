@@ -59,7 +59,7 @@ export default function Public() {
       </main>
 
       <footer className="border-t border-neutral-200 bg-white/60 py-6 text-center text-xs text-neutral-500">
-        Padel Cup MUC · {TOURNAMENT.venue.name}
+        {TOURNAMENT.name} · {TOURNAMENT.venue.name}
       </footer>
     </div>
   );
@@ -101,14 +101,14 @@ function Hero({
           {label}
         </div>
         <div className="mt-4 flex items-center gap-4 sm:gap-6">
-          <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
-            Padel Cup MUC
-          </h1>
           <img
             src="/hillsong-logo.png"
             alt="Hillsong"
             className="h-14 w-14 shrink-0 sm:h-20 sm:w-20"
           />
+          <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
+            {TOURNAMENT.name}
+          </h1>
         </div>
         <div className="mt-3 space-y-0.5 text-base text-white/80 sm:text-xl">
           <p>
