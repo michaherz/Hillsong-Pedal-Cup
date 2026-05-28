@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { TOURNAMENT } from "../lib/tournament";
 import { useT } from "../lib/i18n";
+import PadelRacketsArt from "./PadelRacketsArt";
 
 // Tournament starts at 16:00 local Munich time. We bake CEST (UTC+2) into the target.
 const TARGET_MS = new Date(`${TOURNAMENT.dateISO}T${TOURNAMENT.startTime}:00+02:00`).getTime();
@@ -44,9 +45,13 @@ export default function Countdown() {
       : "bg-primary animate-pulse";
 
   return (
-    <div className="relative col-span-12 overflow-hidden border-2 border-secondary bg-deep-void p-6 sm:p-8 md:col-span-4">
+    <div className="relative col-span-12 flex flex-col overflow-hidden border-2 border-secondary bg-deep-void p-6 sm:p-8 md:col-span-4">
       <div className="bg-dots pointer-events-none absolute inset-0 opacity-10" />
-      <div className="relative">
+
+      {/* Mobile only: small rackets in top-right corner */}
+      <PadelRacketsArt className="absolute right-3 top-3 h-12 w-auto text-secondary opacity-50 md:hidden" />
+
+      <div className="relative flex h-full flex-col">
         <div className="mb-4 flex items-center gap-2">
           <span className={`h-3 w-3 rounded-full ${stateClass}`} />
           <p className="label-caps text-secondary">{t("countdownHeadline")}</p>
@@ -74,6 +79,13 @@ export default function Countdown() {
           <p className="font-display text-headline-md uppercase leading-none text-stadium-white sm:text-display-md">
             GG · WP
           </p>
+        )}
+
+        {/* Desktop only: large rackets fill empty space below cells */}
+        {!live && !finished && (
+          <div className="mt-auto hidden flex-1 items-end justify-center pt-6 md:flex">
+            <PadelRacketsArt className="h-32 w-auto text-secondary opacity-70 lg:h-40" />
+          </div>
         )}
       </div>
     </div>
