@@ -110,12 +110,36 @@
     padding: 0.5em 0;
   }
   .hero-curve-text {
+    position: relative;
     display: inline-block;
     text-align: center;
     will-change: transform;
     /* extra vertical padding so italic + rotate(-2deg) doesn't get clipped */
     padding: 0.25em 0;
     transform-origin: center;
+    /* spotlight defaults — far off-screen so no glow when not hovering */
+    --spot-x: -9999px;
+    --spot-y: -9999px;
+    --spot-r: 180px;
+  }
+  .hero-spotlight-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    color: #4edea3; /* secondary mint highlight */
+    -webkit-mask-image: radial-gradient(
+      circle var(--spot-r) at var(--spot-x) var(--spot-y),
+      black 0%,
+      black 35%,
+      transparent 100%
+    );
+    mask-image: radial-gradient(
+      circle var(--spot-r) at var(--spot-x) var(--spot-y),
+      black 0%,
+      black 35%,
+      transparent 100%
+    );
+    transition: opacity 200ms ease;
   }
   /* Reveal on scroll */
   .reveal {

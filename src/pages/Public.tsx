@@ -118,34 +118,53 @@ function Hero({ registrationOpen }: { registrationOpen: boolean | null }) {
     const el = headRef.current;
     if (!el) return;
 
-    // Touch devices: keep the static rotate(-2deg) — no parallax, no stale transforms.
+    // Touch devices: keep the static rotate(-2deg) and no spotlight.
     const hasFineHover =
       typeof window !== "undefined" &&
       window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
     function reset() {
-      if (el) el.style.transform = "rotate(-2deg)";
+      if (!el) return;
+      el.style.transform = "rotate(-2deg)";
+    }
+    function spotlightOff() {
+      if (!el) return;
+      el.style.setProperty("--spot-x", "-9999px");
+      el.style.setProperty("--spot-y", "-9999px");
     }
 
     if (!hasFineHover) {
       reset();
+      spotlightOff();
       return;
     }
 
     function onMove(e: MouseEvent) {
       if (!el) return;
-      const x = (window.innerWidth / 2 - e.pageX) / 60;
-      const y = (window.innerHeight / 2 - e.pageY) / 60;
-      el.style.transform = `rotate(-2deg) translate(${x}px, ${y}px)`;
+      // subtle parallax of the whole headline based on mouse position vs. window center
+      const px = (window.innerWidth / 2 - e.pageX) / 60;
+      const py = (window.innerHeight / 2 - e.pageY) / 60;
+      el.style.transform = `rotate(-2deg) translate(${px}px, ${py}px)`;
+
+      // spotlight position in element-local coordinates
+      const rect = el.getBoundingClientRect();
+      el.style.setProperty("--spot-x", `${e.clientX - rect.left}px`);
+      el.style.setProperty("--spot-y", `${e.clientY - rect.top}px`);
+    }
+
+    function onLeave() {
+      spotlightOff();
     }
 
     window.addEventListener("mousemove", onMove);
     window.addEventListener("resize", reset);
     window.addEventListener("orientationchange", reset);
+    el.addEventListener("mouseleave", onLeave);
     return () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("resize", reset);
       window.removeEventListener("orientationchange", reset);
+      el.removeEventListener("mouseleave", onLeave);
     };
   }, []);
 
@@ -174,10 +193,13 @@ function Hero({ registrationOpen }: { registrationOpen: boolean | null }) {
             className="hero-curve-text whitespace-nowrap font-display uppercase italic leading-none text-stadium-white"
             style={{
               transform: "rotate(-2deg)",
-              fontSize: "clamp(38px, min(11vw, 14vh), 120px)",
+              fontSize: "clamp(34px, min(8vw, 13vh), 92px)",
             }}
           >
             THIS IS OUR&nbsp;<span className="text-primary">SUMMER</span>
+            <span className="hero-spotlight-overlay" aria-hidden="true">
+              THIS IS OUR&nbsp;SUMMER
+            </span>
           </h1>
         </div>
 
@@ -198,7 +220,7 @@ function Hero({ registrationOpen }: { registrationOpen: boolean | null }) {
               loading="eager"
               decoding="async"
               fetchPriority="high"
-              className="aspect-[4/3] w-full bg-surface-container-high object-cover transition-all duration-700 sm:aspect-[1.85] sm:grayscale sm:hover:grayscale-0"
+              className="aspect-[4/3] w-full bg-surface-container-high object-cover sm:aspect-[1.85]"
             />
 
             <div className="absolute bottom-3 left-3 right-3 panel-void p-3 shadow-hard-sm sm:bottom-10 sm:left-10 sm:right-auto sm:max-w-md sm:p-6 sm:shadow-hard">

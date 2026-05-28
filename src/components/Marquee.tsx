@@ -20,10 +20,12 @@ export default function Marquee({ text, reverse, variant = "primary" }: Props) {
   const tiltDeg = reverse ? 1.6 : -1.6;
 
   return (
-    // Outer clip box — slightly taller than the band so the rotated edges blend cleanly.
-    <div className="relative my-2 overflow-hidden py-2 sm:my-3 sm:py-3">
+    // Wrapper has fixed height + overflow-hidden. Inner band is absolutely positioned
+    // and extends well beyond the wrapper on all sides so that, after rotation, the
+    // colored band still covers every corner of the wrapper without dark triangles.
+    <div className="relative my-2 h-[64px] overflow-hidden sm:my-3 sm:h-[80px]">
       <div
-        className={`-mx-[6%] py-5 sm:py-6 ${containerClass}`}
+        className={`absolute -inset-y-12 -inset-x-[10%] flex items-center justify-start ${containerClass}`}
         style={{
           transform: `rotate(${tiltDeg}deg)`,
           transformOrigin: "center",
