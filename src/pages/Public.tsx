@@ -165,7 +165,7 @@ function Hero({ registrationOpen }: { registrationOpen: boolean | null }) {
   return (
     <section
       id="top"
-      className="relative flex flex-col items-center justify-start bg-surface pt-2 pb-4 sm:min-h-[80vh] sm:justify-center sm:pt-20 sm:pb-0"
+      className="relative flex flex-col items-center bg-surface pt-4 pb-6 sm:pt-12 sm:pb-16"
     >
       <div className="flex w-full max-w-[1440px] flex-col items-center px-5 sm:px-12">
         <div className="hero-curve">

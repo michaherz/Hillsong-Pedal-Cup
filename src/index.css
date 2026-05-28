@@ -107,14 +107,14 @@
     align-items: center;
     overflow-x: clip;
     overflow-y: visible;
-    padding: 0.25em 0;
+    padding: 0.5em 0;
   }
   .hero-curve-text {
     display: inline-block;
     text-align: center;
     will-change: transform;
     /* extra vertical padding so italic + rotate(-2deg) doesn't get clipped */
-    padding: 0.15em 0;
+    padding: 0.25em 0;
     transform-origin: center;
   }
   /* Reveal on scroll */
