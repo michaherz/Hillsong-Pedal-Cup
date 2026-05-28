@@ -29,7 +29,7 @@ export default function Public() {
       <TopNav />
       <LanguageToggle />
 
-      <main className="pt-24">
+      <main className="pt-16 sm:pt-24">
         <Hero registrationOpen={registrationOpen} />
 
         <Marquee text={t("marqueeBanner1")} />
@@ -133,7 +133,7 @@ function Hero({ registrationOpen }: { registrationOpen: boolean | null }) {
   return (
     <section
       id="top"
-      className="relative flex min-h-[80vh] flex-col items-center justify-center bg-surface pt-12 sm:pt-20"
+      className="relative flex flex-col items-center justify-start bg-surface pt-2 pb-4 sm:min-h-[80vh] sm:justify-center sm:pt-20 sm:pb-0"
     >
       <div className="flex w-full max-w-[1440px] flex-col items-center px-5 sm:px-12">
         <div className="hero-curve">
@@ -149,14 +149,14 @@ function Hero({ registrationOpen }: { registrationOpen: boolean | null }) {
           </h1>
         </div>
 
-        <div className="relative -mt-8 mb-12 w-full sm:-mt-16 sm:mb-20">
+        <div className="relative -mt-1 mb-2 w-full sm:-mt-16 sm:mb-20">
           <div
             aria-hidden
-            className="absolute -top-6 -left-2 h-20 w-20 border-l-4 border-t-4 border-secondary opacity-50 sm:-top-10 sm:-left-10 sm:h-40 sm:w-40"
+            className="absolute -top-3 -left-1 h-12 w-12 border-l-4 border-t-4 border-secondary opacity-50 sm:-top-10 sm:-left-10 sm:h-40 sm:w-40"
           />
           <div
             aria-hidden
-            className="absolute -bottom-6 -right-2 h-20 w-20 border-r-4 border-b-4 border-primary opacity-50 sm:-bottom-10 sm:-right-10 sm:h-40 sm:w-40"
+            className="absolute -bottom-3 -right-1 h-12 w-12 border-r-4 border-b-4 border-primary opacity-50 sm:-bottom-10 sm:-right-10 sm:h-40 sm:w-40"
           />
 
           <div className="panel relative z-10 p-2 sm:p-4">
@@ -166,18 +166,20 @@ function Hero({ registrationOpen }: { registrationOpen: boolean | null }) {
               loading="eager"
               decoding="async"
               fetchPriority="high"
-              className="aspect-[1.85] w-full bg-surface-container-high object-cover grayscale transition-all duration-700 hover:grayscale-0"
+              className="aspect-[4/3] w-full bg-surface-container-high object-cover transition-all duration-700 sm:aspect-[1.85] sm:grayscale sm:hover:grayscale-0"
             />
 
-            <div className="absolute bottom-4 left-4 max-w-md panel-void p-4 shadow-hard sm:bottom-10 sm:left-10 sm:p-6">
-              <div className="mb-2 flex items-center gap-2">
+            <div className="absolute bottom-3 left-3 right-3 panel-void p-3 shadow-hard-sm sm:bottom-10 sm:left-10 sm:right-auto sm:max-w-md sm:p-6 sm:shadow-hard">
+              <div className="mb-1.5 flex items-center gap-2 sm:mb-2">
                 <span className={`h-2 w-2 rounded-full ${dotClass}`} />
-                <p className="label-caps-lg text-secondary">{stateLabel}</p>
+                <p className="label-caps text-secondary sm:text-label-caps-lg">
+                  {stateLabel}
+                </p>
               </div>
-              <h2 className="mb-3 font-display text-3xl uppercase leading-none text-stadium-white sm:text-display-md">
+              <h2 className="mb-2 font-display text-2xl uppercase leading-none text-stadium-white sm:mb-3 sm:text-display-md">
                 Hillsong Padel Cup
               </h2>
-              <p className="font-body text-body-md text-on-surface-variant sm:text-body-lg">
+              <p className="font-body text-body-sm text-on-surface-variant sm:text-body-lg">
                 {formatEventDate(TOURNAMENT.dateISO, lang)} ·{" "}
                 {TOURNAMENT.startTime} · {TOURNAMENT.venue.name}
               </p>
