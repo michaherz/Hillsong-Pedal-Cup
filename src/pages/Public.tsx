@@ -281,7 +281,7 @@ function RegistrationSection({
   return (
     <section
       id="register"
-      className="mx-auto w-full max-w-[1440px] px-5 pb-16 sm:px-12 sm:pb-24"
+      className="mx-auto w-full max-w-[1440px] scroll-mt-24 px-5 pb-16 sm:scroll-mt-28 sm:px-12 sm:pb-24"
     >
       <SectionHeading
         eyebrow={t("registerEyebrow")}
@@ -466,7 +466,7 @@ function TeamsSection({
   return (
     <section
       id="teams"
-      className="mx-auto w-full max-w-[1440px] px-5 pb-16 sm:px-12 sm:pb-24"
+      className="mx-auto w-full max-w-[1440px] scroll-mt-24 px-5 pb-16 sm:scroll-mt-28 sm:px-12 sm:pb-24"
     >
       <SectionHeading
         eyebrow={t("teamsEyebrow")}
@@ -504,7 +504,7 @@ function VenueSection() {
   return (
     <section
       id="venue"
-      className="mx-auto w-full max-w-[1440px] px-5 pt-4 pb-20 sm:px-12 sm:pt-8 sm:pb-32"
+      className="mx-auto w-full max-w-[1440px] scroll-mt-24 px-5 pt-4 pb-20 sm:scroll-mt-28 sm:px-12 sm:pt-8 sm:pb-32"
     >
       <SectionHeading
         eyebrow={t("venueEyebrow")}

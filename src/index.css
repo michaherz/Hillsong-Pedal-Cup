@@ -8,6 +8,11 @@
   #root {
     @apply h-full;
   }
+  html {
+    /* offset anchor-scroll so the fixed top nav doesn't cover the section heading */
+    scroll-padding-top: 6rem;
+    @apply scroll-smooth;
+  }
   body {
     @apply bg-background font-body text-on-surface antialiased;
     font-feature-settings: "ss01";
