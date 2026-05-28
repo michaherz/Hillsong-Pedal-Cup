@@ -101,7 +101,7 @@
   /* Curved hero stage */
   .hero-curve {
     position: relative;
-    height: clamp(140px, 26vw, 300px);
+    height: clamp(110px, 16vw, 280px);
     width: 100%;
     overflow: hidden;
   }
@@ -111,8 +111,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 120%;
-    left: -10%;
+    width: 130%;
+    left: -15%;
     text-align: center;
     will-change: transform;
   }
