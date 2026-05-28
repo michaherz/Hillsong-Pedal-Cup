@@ -9,31 +9,113 @@
     @apply h-full;
   }
   body {
-    @apply bg-neutral-50 text-neutral-900 antialiased;
-    font-feature-settings: "ss01", "cv11";
+    @apply bg-background font-body text-on-surface antialiased;
+    font-feature-settings: "ss01";
+  }
+  ::selection {
+    @apply bg-primary text-on-primary;
   }
 }
 
 @layer components {
+  /* Buttons */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 font-display uppercase tracking-wider transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply btn bg-court-500 text-white shadow-sm hover:bg-court-600;
+    @apply btn border-2 border-stadium-white bg-primary px-6 py-3 text-headline-sm text-on-primary-container shadow-hard hover:-translate-x-1 hover:-translate-y-1 hover:shadow-hard-lg;
   }
   .btn-secondary {
-    @apply btn bg-white text-neutral-900 ring-1 ring-inset ring-neutral-200 hover:bg-neutral-100;
+    @apply btn border-2 border-stadium-white bg-stadium-white px-6 py-3 text-headline-sm text-deep-void shadow-hard hover:-translate-x-1 hover:-translate-y-1 hover:shadow-hard-lg;
   }
   .btn-ghost {
-    @apply btn text-neutral-600 hover:bg-neutral-100;
+    @apply btn border-2 border-stadium-white bg-transparent px-6 py-3 text-headline-sm text-stadium-white hover:bg-surface-bright;
   }
+  .btn-sm {
+    @apply btn border-2 border-stadium-white bg-primary px-4 py-2 text-label-caps-lg text-on-primary-container shadow-hard-sm hover:-translate-x-0.5 hover:-translate-y-0.5;
+  }
+  .btn-icon {
+    @apply inline-flex h-10 w-10 items-center justify-center border-2 border-outline-variant bg-surface-container text-on-surface transition hover:border-primary hover:bg-surface-container-high;
+  }
+
+  /* Inputs */
   .input {
-    @apply w-full rounded-xl border-0 bg-white px-4 py-3 text-base text-neutral-900 ring-1 ring-inset ring-neutral-200 placeholder:text-neutral-400 focus:ring-2 focus:ring-court-500 focus:outline-none;
+    @apply w-full border-2 border-outline-variant bg-surface-container px-4 py-3 font-body text-body-lg text-stadium-white placeholder:text-on-surface-variant/60 focus:border-primary focus:outline-none focus:ring-0 transition-colors;
   }
-  .card {
-    @apply rounded-2xl bg-white ring-1 ring-neutral-200/70 shadow-sm;
+  .input-line {
+    @apply w-full border-x-0 border-t-0 border-b-2 border-stadium-white bg-deep-void px-2 py-4 font-mono text-body-md uppercase tracking-wider text-stadium-white placeholder:text-on-surface-variant focus:border-primary focus:outline-none focus:ring-0 transition-colors;
   }
-  .label {
-    @apply mb-1.5 block text-sm font-medium text-neutral-700;
+
+  /* Cards */
+  .panel {
+    @apply border-2 border-outline-variant bg-surface-container relative;
+  }
+  .panel-bright {
+    @apply border-2 border-outline-variant bg-surface-container-high relative;
+  }
+  .panel-void {
+    @apply border-2 border-primary bg-deep-void relative;
+  }
+  .panel-pop {
+    @apply border-2 border-stadium-white bg-surface-container shadow-hard;
+  }
+
+  /* Labels */
+  .label-caps {
+    @apply font-mono text-label-caps uppercase tracking-[0.12em];
+  }
+  .label-caps-lg {
+    @apply font-mono text-label-caps-lg uppercase tracking-[0.1em];
+  }
+
+  /* Hover hard-shadow lift */
+  .hard-shadow-hover {
+    @apply transition-all;
+  }
+  .hard-shadow-hover:hover {
+    @apply -translate-x-1 -translate-y-1 shadow-hard-lg;
+  }
+}
+
+@layer utilities {
+  /* Marquee container */
+  .marquee-track {
+    display: flex;
+    width: max-content;
+  }
+  /* Curved hero stage */
+  .hero-curve {
+    position: relative;
+    height: clamp(140px, 26vw, 300px);
+    width: 100%;
+    overflow: hidden;
+  }
+  .hero-curve-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 120%;
+    left: -10%;
+    text-align: center;
+    will-change: transform;
+  }
+  /* Reveal on scroll */
+  .reveal {
+    opacity: 0;
+    transform: translateY(40px);
+    transition:
+      opacity 1s ease,
+      transform 1s ease;
+  }
+  .reveal.in {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  /* Bg dot pattern */
+  .bg-dots {
+    background-image: radial-gradient(circle at center, #4edea3 1px, transparent 1px);
+    background-size: 20px 20px;
   }
 }

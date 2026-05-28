@@ -26,8 +26,8 @@ export default function Score() {
 
   if (!loaded) {
     return (
-      <div className="grid min-h-full place-items-center text-sm text-neutral-500">
-        {t("loadingShort")}
+      <div className="grid min-h-full place-items-center bg-background text-on-surface-variant">
+        <p className="label-caps">{t("loadingShort")}</p>
       </div>
     );
   }
@@ -56,33 +56,37 @@ function SignInGate() {
     setLoading(false);
     if (authError) {
       console.error("Auth error", authError);
-      setError(`${authError.message} (Email: ${ADMIN_EMAIL})`);
+      setError(`${authError.message}`);
       setPin("");
     }
   }
 
   return (
-    <div className="grid min-h-full place-items-center bg-neutral-100 px-5">
-      <form onSubmit={submit} className="card w-full max-w-sm p-8">
+    <div className="grid min-h-full place-items-center bg-background px-5">
+      <form onSubmit={submit} className="panel-pop w-full max-w-sm p-8">
         <div className="mb-6 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-court-50 text-court-600">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center border-2 border-primary text-primary">
             <LockIcon />
           </div>
-          <h1 className="mt-4 text-xl font-semibold">{t("scoreMode")}</h1>
-          <p className="mt-1 text-sm text-neutral-500">{t("pinPrompt")}</p>
+          <h1 className="mt-4 font-display text-headline-md uppercase text-stadium-white">
+            {t("scoreMode")}
+          </h1>
+          <p className="label-caps mt-2 text-on-surface-variant">
+            {t("pinPrompt")}
+          </p>
         </div>
         <input
           type="password"
           inputMode="numeric"
           autoFocus
           autoComplete="off"
-          className="input text-center text-2xl tracking-[0.4em]"
+          className="input text-center text-2xl tracking-[0.5em]"
           placeholder="••••"
           value={pin}
           onChange={(e) => setPin(e.target.value)}
         />
         {error && (
-          <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-center text-sm text-red-700">
+          <p className="mt-3 border-2 border-error bg-error-container/40 px-3 py-2 text-center text-sm text-error">
             {error}
           </p>
         )}
@@ -106,24 +110,26 @@ function Admin({ onSignOut }: { onSignOut: () => void }) {
   const publicUrl = typeof window !== "undefined" ? window.location.origin : "";
 
   return (
-    <div className="min-h-full bg-neutral-50">
-      <header className="border-b border-neutral-200 bg-white">
+    <div className="min-h-full bg-background">
+      <header className="border-b-2 border-outline-variant bg-surface-container">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-3">
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-emerald-500" />
-            <p className="text-sm font-semibold">{t("scoreMode")}</p>
-            <span className="ml-2 hidden text-xs text-neutral-400 sm:inline">
+          <div className="flex items-center gap-3">
+            <div className="h-2.5 w-2.5 animate-pulse-glow rounded-full bg-secondary" />
+            <p className="font-display text-headline-sm uppercase text-stadium-white">
+              {t("scoreMode")}
+            </p>
+            <span className="ml-2 hidden label-caps text-on-surface-variant sm:inline">
               {TOURNAMENT.name}
             </span>
           </div>
-          <button onClick={onSignOut} className="btn-ghost text-sm">
+          <button onClick={onSignOut} className="label-caps text-on-surface-variant transition-colors hover:text-primary">
             {t("signOut")}
           </button>
         </div>
       </header>
 
       <main className="mx-auto max-w-5xl space-y-6 px-5 py-6">
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid gap-4 lg:grid-cols-3">
           <RegistrationToggle
             open={settings?.registration_open ?? true}
             disabled={!settings}
@@ -134,12 +140,12 @@ function Admin({ onSignOut }: { onSignOut: () => void }) {
           />
         </div>
 
-        <section className="card">
-          <header className="flex items-center justify-between border-b border-neutral-100 px-5 py-4">
-            <h2 className="text-base font-semibold">
+        <section className="border-2 border-outline-variant bg-surface-container">
+          <header className="flex items-center justify-between border-b-2 border-outline-variant px-5 py-4">
+            <h2 className="font-display text-headline-sm uppercase text-stadium-white">
               {t("adminTeamsHeading")}
             </h2>
-            <p className="text-xs text-neutral-500">
+            <p className="label-caps text-on-surface-variant">
               {t("adminTotal", { count: teams?.length ?? 0 })}
             </p>
           </header>
@@ -176,19 +182,17 @@ function RegistrationToggle({
     setBusy(false);
   }
   return (
-    <div className="card p-5">
-      <p className="text-xs uppercase tracking-wider text-neutral-500">
+    <div className="border-2 border-outline-variant bg-surface-container p-5">
+      <p className="label-caps text-on-surface-variant">
         {t("cardRegistration")}
       </p>
-      <p className="mt-1 text-2xl font-bold">
+      <p className="mt-2 font-display text-display-md uppercase leading-none text-stadium-white">
         {open ? t("cardOpen") : t("cardClosed")}
       </p>
       <button
         onClick={toggle}
         disabled={disabled || busy}
-        className={
-          open ? "btn-secondary mt-4 w-full" : "btn-primary mt-4 w-full"
-        }
+        className={`${open ? "btn-ghost" : "btn-primary"} mt-4 w-full`}
       >
         {busy ? "…" : open ? t("closeReg") : t("openReg")}
       </button>
@@ -221,8 +225,8 @@ function PublicLinkCard({ url }: { url: string }) {
   }
 
   return (
-    <div className="card flex items-center gap-4 p-5">
-      <div className="rounded-lg bg-white p-2 ring-1 ring-neutral-200">
+    <div className="flex items-center gap-4 border-2 border-outline-variant bg-surface-container p-5">
+      <div className="border-2 border-stadium-white bg-stadium-white p-2">
         <QRCodeSVG value={url || "https://"} size={72} />
       </div>
       <QRCodeCanvas
@@ -233,15 +237,21 @@ function PublicLinkCard({ url }: { url: string }) {
         style={{ display: "none" }}
       />
       <div className="min-w-0 flex-1">
-        <p className="text-xs uppercase tracking-wider text-neutral-500">
-          {t("publicLink")}
+        <p className="label-caps text-on-surface-variant">{t("publicLink")}</p>
+        <p className="mt-1 truncate font-mono text-body-sm text-stadium-white">
+          {url}
         </p>
-        <p className="mt-0.5 truncate text-sm font-medium">{url}</p>
-        <div className="mt-2 -ml-2 flex gap-1">
-          <button onClick={copy} className="btn-ghost px-2 text-xs">
+        <div className="mt-2 flex gap-2">
+          <button
+            onClick={copy}
+            className="label-caps border-2 border-outline-variant px-2 py-1 text-on-surface transition-colors hover:border-primary hover:text-primary"
+          >
             {copied ? t("copied") : t("copy")}
           </button>
-          <button onClick={download} className="btn-ghost px-2 text-xs">
+          <button
+            onClick={download}
+            className="label-caps border-2 border-outline-variant px-2 py-1 text-on-surface transition-colors hover:border-primary hover:text-primary"
+          >
             {t("download")}
           </button>
         </div>
@@ -253,12 +263,12 @@ function PublicLinkCard({ url }: { url: string }) {
 function TeamCountCard({ count }: { count: number }) {
   const t = useT();
   return (
-    <div className="card p-5">
-      <p className="text-xs uppercase tracking-wider text-neutral-500">
-        {t("activeTeams")}
+    <div className="border-2 border-outline-variant bg-surface-container p-5">
+      <p className="label-caps text-on-surface-variant">{t("activeTeams")}</p>
+      <p className="mt-2 font-display text-display-md uppercase leading-none text-stadium-white">
+        {count}
       </p>
-      <p className="mt-1 text-2xl font-bold">{count}</p>
-      <p className="mt-2 text-xs text-neutral-500">
+      <p className="mt-2 label-caps text-on-surface-variant">
         {t("target", {
           courts: TOURNAMENT.courts,
           hours: TOURNAMENT.durationHours,
@@ -271,13 +281,21 @@ function TeamCountCard({ count }: { count: number }) {
 function AdminTeamTable({ teams }: { teams: Team[] | null }) {
   const t = useT();
   if (teams === null) {
-    return <div className="p-6 text-sm text-neutral-500">{t("adminLoadingTeams")}</div>;
+    return (
+      <div className="p-6 label-caps text-on-surface-variant">
+        {t("adminLoadingTeams")}
+      </div>
+    );
   }
   if (teams.length === 0) {
-    return <div className="p-6 text-sm text-neutral-500">{t("adminNoTeams")}</div>;
+    return (
+      <div className="p-6 label-caps text-on-surface-variant">
+        {t("adminNoTeams")}
+      </div>
+    );
   }
   return (
-    <ul className="divide-y divide-neutral-100">
+    <ul className="divide-y-2 divide-outline-variant">
       {teams.map((team, idx) => (
         <AdminTeamRow key={team.id} team={team} index={idx} />
       ))}
@@ -324,7 +342,7 @@ function AdminTeamRow({ team, index }: { team: Team; index: number }) {
 
   if (editing) {
     return (
-      <li className="bg-court-50/40 p-4">
+      <li className="bg-surface-container-high p-4">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <input
             className="input"
@@ -355,10 +373,13 @@ function AdminTeamRow({ team, index }: { team: Team; index: number }) {
             <option value="advanced">{skillLabel.advanced}</option>
           </select>
           <div className="flex gap-2">
-            <button onClick={() => setEditing(false)} className="btn-ghost">
+            <button
+              onClick={() => setEditing(false)}
+              className="label-caps border-2 border-outline-variant px-3 py-1.5 text-on-surface hover:border-primary"
+            >
               {t("adminCancel")}
             </button>
-            <button onClick={save} disabled={busy} className="btn-primary">
+            <button onClick={save} disabled={busy} className="btn-sm">
               {busy ? "…" : t("adminSave")}
             </button>
           </div>
@@ -369,26 +390,28 @@ function AdminTeamRow({ team, index }: { team: Team; index: number }) {
 
   return (
     <li className="flex items-center gap-4 p-4">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-sm font-semibold text-neutral-600">
-        {index + 1}
-      </div>
+      <span className="w-10 shrink-0 font-mono text-label-caps text-on-surface-variant">
+        #{String(index + 1).padStart(2, "0")}
+      </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold">{team.team_name}</p>
-        <p className="truncate text-xs text-neutral-500">
+        <p className="truncate font-display text-headline-sm uppercase text-stadium-white">
+          {team.team_name}
+        </p>
+        <p className="truncate font-body text-body-sm text-on-surface-variant">
           {team.player_1} · {team.player_2} · {skillLabel[team.skill_level]}
         </p>
       </div>
       <div className="flex shrink-0 gap-1">
         <button
           onClick={() => setEditing(true)}
-          className="btn-ghost text-xs"
+          className="label-caps px-2 py-1 text-on-surface-variant transition-colors hover:text-primary"
         >
           {t("adminEdit")}
         </button>
         <button
           onClick={remove}
           disabled={busy}
-          className="btn-ghost text-xs text-red-600 hover:bg-red-50"
+          className="label-caps px-2 py-1 text-error transition-colors hover:text-stadium-white"
         >
           {t("adminDelete")}
         </button>
@@ -409,7 +432,7 @@ function LockIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <rect x="3" y="11" width="18" height="11" />
       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
     </svg>
   );

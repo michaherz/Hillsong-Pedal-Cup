@@ -1,13 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { supabase } from "../lib/supabase";
 import { TOURNAMENT } from "../lib/tournament";
-import { type SkillLevel } from "../lib/database.types";
+import { type SkillLevel, SKILL_LABELS } from "../lib/database.types";
 import { formatEventDate, useLang, useT } from "../lib/i18n";
 import { useSettings, useTeams } from "../lib/hooks";
 import TeamList from "../components/TeamList";
 import VenueCard from "../components/VenueCard";
 import InfoCards from "../components/InfoCards";
 import LanguageToggle from "../components/LanguageToggle";
+import Marquee from "../components/Marquee";
 
 const SKILL_OPTIONS: SkillLevel[] = ["beginner", "intermediate", "advanced"];
 
@@ -16,168 +17,332 @@ export default function Public() {
   const teams = useTeams();
   const settings = useSettings();
   const registrationOpen = settings?.registration_open ?? null;
+  const phase = settings?.tournament_phase ?? "registration";
 
   const activeCount = useMemo(
     () => (teams ?? []).filter((t) => t.status === "active").length,
     [teams],
   );
 
-  const subtitle =
-    teams === null
-      ? t("listLoading")
-      : activeCount === 0
-        ? t("listEmpty")
-        : activeCount === 1
-          ? t("listCountOne", { count: activeCount })
-          : t("listCountMany", { count: activeCount });
-
   return (
-    <div className="min-h-full">
+    <div className="min-h-full overflow-x-hidden bg-background">
+      <TopNav />
       <LanguageToggle />
-      <Hero teamCount={activeCount} registrationOpen={registrationOpen} />
 
-      <main className="mx-auto max-w-3xl px-5 pb-24">
-        {registrationOpen === null ? (
-          <LoadingNotice />
-        ) : registrationOpen ? (
-          <RegistrationForm />
-        ) : (
-          <ClosedNotice teamCount={activeCount} />
-        )}
+      <main className="pt-24">
+        <Hero registrationOpen={registrationOpen} />
 
-        <section className="mt-10">
-          <SectionHeader title={t("listHeading")} subtitle={subtitle} />
-          <TeamList teams={teams} />
-        </section>
+        <Marquee
+          text={`${t("marqueeBanner1")} • ${formatEventDate(TOURNAMENT.dateISO, "en").toUpperCase()} • ${TOURNAMENT.startTime}`}
+        />
 
-        <section className="mt-10">
-          <InfoCards />
-        </section>
+        <BentoStats
+          teamCount={activeCount}
+          phase={phase}
+          registrationOpen={registrationOpen}
+        />
 
-        <section className="mt-10">
-          <SectionHeader title={t("sectionDescription")} />
-          <VenueCard />
-        </section>
+        <RegistrationSection
+          registrationOpen={registrationOpen}
+          activeCount={activeCount}
+        />
+
+        <TeamsSection teams={teams} count={activeCount} />
+
+        <Marquee text={t("marqueeBanner2")} variant="void" reverse />
+
+        <InfoSection />
+
+        <VenueSection />
+
+        <FooterSection />
       </main>
-
-      <footer className="border-t border-neutral-200 bg-white/60 py-6 text-center text-xs text-neutral-500">
-        {TOURNAMENT.name} · {TOURNAMENT.venue.name}
-      </footer>
     </div>
   );
 }
 
-function Hero({
-  teamCount,
-  registrationOpen,
-}: {
-  teamCount: number;
-  registrationOpen: boolean | null;
-}) {
-  const t = useT();
-  const { lang } = useLang();
-  const dotClass =
-    registrationOpen === null
-      ? "bg-white/40 animate-pulse"
-      : registrationOpen
-        ? "bg-emerald-400"
-        : "bg-neutral-400";
-  const label =
-    registrationOpen === null
-      ? t("regLoading")
-      : registrationOpen
-        ? t("regOpen")
-        : t("regClosed");
+/* ------------------------------ TOP NAV ------------------------------ */
+
+function TopNav() {
   return (
-    <header className="relative overflow-hidden bg-gradient-to-b from-court-600 to-court-800 px-5 pb-14 pt-16 text-white sm:pt-24">
-      <div
-        className="absolute inset-0 opacity-20"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 20% 0%, white 0, transparent 40%), radial-gradient(circle at 90% 100%, white 0, transparent 35%)",
-        }}
-      />
-      <div className="relative mx-auto max-w-3xl">
-        <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-wider backdrop-blur">
-          <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
-          {label}
-        </div>
-        <div className="mt-4 flex items-center gap-4 sm:gap-6">
+    <header className="fixed top-0 z-40 w-full border-b-2 border-outline-variant bg-background/95 backdrop-blur">
+      <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between px-5 py-3 sm:px-12 md:py-4">
+        <a href="#top" className="flex items-center gap-3 sm:gap-4">
           <img
             src="/hillsong-logo.png"
             alt="Hillsong"
-            className="h-14 w-14 shrink-0 sm:h-20 sm:w-20"
+            className="h-9 w-9 shrink-0 sm:h-12 sm:w-12"
           />
-          <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
-            {TOURNAMENT.name}
-          </h1>
-        </div>
-        <div className="mt-3 space-y-0.5 text-base text-white/80 sm:text-xl">
-          <p>
-            {formatEventDate(TOURNAMENT.dateISO, lang)} · {TOURNAMENT.startTime}
-          </p>
-          <p>{TOURNAMENT.venue.name}</p>
-        </div>
-        <div className="mt-6 flex flex-wrap gap-3 text-sm">
-          <Stat label={t("statTeams")} value={teamCount.toString()} />
-          <Stat
-            label={t("statCourts")}
-            value={TOURNAMENT.courts.toString()}
-          />
-          <Stat
-            label={t("statHours")}
-            value={TOURNAMENT.durationHours.toString()}
-          />
-        </div>
+          <span className="font-display text-2xl uppercase tracking-tight text-primary sm:text-display-md">
+            Padel Cup 2026
+          </span>
+        </a>
+        <nav className="hidden gap-6 md:flex lg:gap-10">
+          <NavLink href="#register">Register</NavLink>
+          <NavLink href="#teams">Teams</NavLink>
+          <NavLink href="#venue">Venue</NavLink>
+        </nav>
+        <a
+          href="#register"
+          className="hidden whitespace-nowrap border-2 border-stadium-white bg-primary px-4 py-2 font-display text-sm uppercase tracking-wider text-on-primary-container shadow-hard-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 sm:inline-flex"
+        >
+          Join Now
+        </a>
       </div>
     </header>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function NavLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <div className="rounded-2xl bg-white/10 px-4 py-2 backdrop-blur">
-      <div className="text-2xl font-bold leading-tight">{value}</div>
-      <div className="text-[11px] uppercase tracking-wider text-white/70">
-        {label}
-      </div>
-    </div>
+    <a
+      href={href}
+      className="font-display text-headline-sm uppercase tracking-wider text-on-surface transition-colors hover:text-primary"
+    >
+      {children}
+    </a>
   );
 }
 
-function SectionHeader({
-  title,
-  subtitle,
+/* ------------------------------ HERO ------------------------------ */
+
+function Hero({ registrationOpen }: { registrationOpen: boolean | null }) {
+  const t = useT();
+  const { lang } = useLang();
+  const headRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      const el = headRef.current;
+      if (!el) return;
+      const x = (window.innerWidth / 2 - e.pageX) / 60;
+      const y = (window.innerHeight / 2 - e.pageY) / 60;
+      el.style.transform = `rotate(-2deg) translate(${x}px, ${y}px)`;
+    }
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, []);
+
+  const dotClass =
+    registrationOpen === null
+      ? "bg-stadium-white/40 animate-pulse"
+      : registrationOpen
+        ? "bg-secondary animate-pulse-glow"
+        : "bg-tertiary";
+  const stateLabel =
+    registrationOpen === null
+      ? t("regLoading")
+      : registrationOpen
+        ? t("regOpen")
+        : t("regClosed");
+
+  return (
+    <section
+      id="top"
+      className="relative flex min-h-[80vh] flex-col items-center justify-center bg-surface pt-12 sm:pt-20"
+    >
+      <div className="flex w-full max-w-[1440px] flex-col items-center px-5 sm:px-12">
+        <div className="hero-curve">
+          <h1
+            ref={headRef}
+            className="hero-curve-text font-display text-[20vw] uppercase italic leading-none tracking-tight text-stadium-white sm:text-display-xl"
+            style={{ transform: "rotate(-2deg)" }}
+          >
+            JOIN THE <span className="text-primary">PLAY</span>
+          </h1>
+        </div>
+
+        <Reveal className="relative -mt-8 mb-12 w-full sm:-mt-16 sm:mb-20">
+          <div
+            aria-hidden
+            className="absolute -top-6 -left-2 h-20 w-20 border-l-4 border-t-4 border-secondary opacity-50 sm:-top-10 sm:-left-10 sm:h-40 sm:w-40"
+          />
+          <div
+            aria-hidden
+            className="absolute -bottom-6 -right-2 h-20 w-20 border-r-4 border-b-4 border-primary opacity-50 sm:-bottom-10 sm:-right-10 sm:h-40 sm:w-40"
+          />
+
+          <div className="panel relative z-10 p-2 sm:p-4">
+            <img
+              src="/pineapple-park.jpg"
+              alt="Casa Padel Pineapple Park"
+              className="aspect-[1.85] w-full object-cover grayscale transition-all duration-700 hover:grayscale-0"
+            />
+
+            <div className="absolute bottom-4 left-4 max-w-md panel-void p-4 shadow-hard sm:bottom-10 sm:left-10 sm:p-6">
+              <div className="mb-2 flex items-center gap-2">
+                <span className={`h-2 w-2 rounded-full ${dotClass}`} />
+                <p className="label-caps-lg text-secondary">{stateLabel}</p>
+              </div>
+              <h2 className="mb-3 font-display text-3xl uppercase leading-none text-stadium-white sm:text-display-md">
+                Hillsong Padel Cup
+              </h2>
+              <p className="font-body text-body-md text-on-surface-variant sm:text-body-lg">
+                {formatEventDate(TOURNAMENT.dateISO, lang)} ·{" "}
+                {TOURNAMENT.startTime} · {TOURNAMENT.venue.name}
+              </p>
+            </div>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------ BENTO STATS ------------------------------ */
+
+function BentoStats({
+  teamCount,
+  phase,
+  registrationOpen,
 }: {
-  title: string;
-  subtitle?: string;
+  teamCount: number;
+  phase: string;
+  registrationOpen: boolean | null;
+}) {
+  const t = useT();
+  const isLive =
+    phase === "mexicano" || phase === "knockout";
+  const phaseTagline = isLive
+    ? t("liveTrackingActive")
+    : registrationOpen
+      ? t("liveTrackingWaiting")
+      : t("liveTrackingClosed");
+
+  return (
+    <section className="mx-auto w-full max-w-[1440px] px-5 py-16 sm:px-12 sm:py-24">
+      <div className="grid grid-cols-12 gap-4 sm:gap-6">
+        <Reveal className="group relative col-span-12 overflow-hidden border-2 border-outline-variant bg-surface-container p-6 sm:p-10 md:col-span-8">
+          <div
+            aria-hidden
+            className="absolute top-0 right-0 h-32 w-32 translate-x-16 -translate-y-16 rotate-45 bg-secondary opacity-10 transition-transform duration-500 group-hover:scale-150"
+          />
+          <span className="label-caps-lg inline-block rounded-full border-2 border-primary px-3 py-1 text-primary">
+            {t("bentoPremiumLabel")}
+          </span>
+          <h3 className="mt-6 font-display text-display-md uppercase leading-none text-stadium-white sm:text-display-lg">
+            {t("bentoPrimaryHeadline")}
+          </h3>
+          <p className="mt-4 max-w-xl font-body text-body-md text-on-surface-variant sm:text-body-lg">
+            {t("bentoPrimaryBody")}
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3 sm:mt-12 sm:gap-4">
+            <a href="#register" className="btn-secondary">
+              {t("bentoCtaRegister")}
+            </a>
+            <a href="#venue" className="btn-ghost">
+              {t("bentoCtaVenue")}
+            </a>
+          </div>
+        </Reveal>
+
+        <Reveal className="relative col-span-12 flex flex-col items-center justify-center overflow-hidden border-2 border-secondary bg-deep-void p-6 text-center sm:p-10 md:col-span-4">
+          <div className="bg-dots pointer-events-none absolute inset-0 opacity-10" />
+          <div className="mb-4 h-3 w-3 animate-pulse-glow rounded-full bg-secondary sm:mb-6 sm:h-4 sm:w-4" />
+          <h3 className="font-display text-headline-md uppercase text-secondary">
+            {t("liveTrackingHeadline")}
+          </h3>
+          <p className="label-caps mt-2 text-stadium-white">{phaseTagline}</p>
+          <div className="mt-6 h-1.5 w-full bg-primary/20">
+            <div
+              className="h-full bg-secondary transition-all duration-700"
+              style={{
+                width: `${Math.min(100, Math.max(8, (teamCount / 12) * 100))}%`,
+              }}
+            />
+          </div>
+        </Reveal>
+
+        <StatTile
+          icon="schedule"
+          accent="text-primary"
+          headline={TOURNAMENT.startTime}
+          label={t("bentoStatStart")}
+        />
+        <StatTile
+          icon="groups"
+          accent="text-secondary"
+          headline={teamCount.toString()}
+          label={t("bentoStatTeams")}
+        />
+        <StatTile
+          icon="sports_tennis"
+          accent="text-tertiary"
+          headline={TOURNAMENT.courts.toString()}
+          label={t("bentoStatCourts")}
+        />
+      </div>
+    </section>
+  );
+}
+
+function StatTile({
+  icon,
+  accent,
+  headline,
+  label,
+}: {
+  icon: string;
+  accent: string;
+  headline: string;
+  label: string;
 }) {
   return (
-    <div className="mb-4 flex items-baseline justify-between">
-      <h2 className="text-xl font-semibold text-neutral-900">{title}</h2>
-      {subtitle && <p className="text-sm text-neutral-500">{subtitle}</p>}
-    </div>
+    <Reveal className="col-span-12 border-2 border-outline-variant bg-surface-container-high p-6 transition-all hover:border-primary sm:col-span-6 md:col-span-4 sm:p-8">
+      <div className="mb-3 flex items-center gap-3 sm:mb-4 sm:gap-4">
+        <span className={`material-symbols-outlined text-3xl sm:text-4xl ${accent}`}>
+          {icon}
+        </span>
+        <h4 className="font-display text-headline-sm uppercase text-stadium-white sm:text-headline-md">
+          {headline}
+        </h4>
+      </div>
+      <p className="label-caps text-on-surface-variant">{label}</p>
+    </Reveal>
   );
 }
 
-function ClosedNotice({ teamCount }: { teamCount: number }) {
+/* ------------------------------ REGISTRATION ------------------------------ */
+
+function RegistrationSection({
+  registrationOpen,
+  activeCount,
+}: {
+  registrationOpen: boolean | null;
+  activeCount: number;
+}) {
   const t = useT();
   return (
-    <div className="card relative z-10 -mt-6 p-6 sm:-mt-10 sm:p-8">
-      <h2 className="text-lg font-semibold">{t("closedHeading")}</h2>
-      <p className="mt-1 text-sm text-neutral-600">
-        {t("closedBody", { count: teamCount })}
-      </p>
-    </div>
-  );
-}
-
-function LoadingNotice() {
-  return (
-    <div className="card relative z-10 -mt-6 p-6 sm:-mt-10 sm:p-8">
-      <div className="h-4 w-40 animate-pulse rounded bg-neutral-100" />
-      <div className="mt-3 h-3 w-64 animate-pulse rounded bg-neutral-100" />
-    </div>
+    <section
+      id="register"
+      className="mx-auto w-full max-w-[1440px] px-5 pb-16 sm:px-12 sm:pb-24"
+    >
+      <SectionHeading
+        eyebrow={t("registerEyebrow")}
+        title={t("registerHeading")}
+      />
+      {registrationOpen === null ? (
+        <Reveal>
+          <div className="panel p-8">
+            <div className="h-4 w-40 animate-pulse bg-surface-bright" />
+            <div className="mt-3 h-3 w-64 animate-pulse bg-surface-bright" />
+          </div>
+        </Reveal>
+      ) : registrationOpen ? (
+        <RegistrationForm />
+      ) : (
+        <Reveal>
+          <div className="panel-pop p-8 sm:p-10">
+            <h3 className="font-display text-headline-md uppercase text-stadium-white">
+              {t("closedHeading")}
+            </h3>
+            <p className="mt-2 font-body text-body-md text-on-surface-variant sm:text-body-lg">
+              {t("closedBody", { count: activeCount })}
+            </p>
+          </div>
+        </Reveal>
+      )}
+    </section>
   );
 }
 
@@ -227,98 +392,274 @@ function RegistrationForm() {
   }
 
   return (
-    <form onSubmit={submit} className="card relative z-10 -mt-6 p-6 sm:-mt-10 sm:p-8">
-      <h2 className="text-lg font-semibold">{t("registerHeading")}</h2>
-      <p className="mt-1 text-sm text-neutral-600">{t("registerSubtitle")}</p>
-
-      <div className="mt-5 space-y-4">
-        <div>
-          <label className="label" htmlFor="team_name">
-            {t("teamName")}
-          </label>
-          <input
-            id="team_name"
-            className="input"
-            placeholder={t("teamNamePh")}
-            value={teamName}
-            onChange={(e) => setTeamName(e.target.value)}
-            maxLength={60}
-            required
-          />
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <Reveal>
+      <form onSubmit={submit} className="panel-pop p-6 sm:p-10">
+        <div className="space-y-5">
           <div>
-            <label className="label" htmlFor="player_1">
-              {t("player1")}
+            <label className="label-caps mb-2 block text-on-surface-variant" htmlFor="team_name">
+              {t("teamName")}
             </label>
             <input
-              id="player_1"
-              className="input"
-              placeholder={t("playerPh")}
-              value={player1}
-              onChange={(e) => setPlayer1(e.target.value)}
+              id="team_name"
+              className="input-line"
+              placeholder={t("teamNamePh")}
+              value={teamName}
+              onChange={(e) => setTeamName(e.target.value)}
               maxLength={60}
               required
             />
           </div>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div>
+              <label className="label-caps mb-2 block text-on-surface-variant" htmlFor="player_1">
+                {t("player1")}
+              </label>
+              <input
+                id="player_1"
+                className="input-line"
+                placeholder={t("playerPh")}
+                value={player1}
+                onChange={(e) => setPlayer1(e.target.value)}
+                maxLength={60}
+                required
+              />
+            </div>
+            <div>
+              <label className="label-caps mb-2 block text-on-surface-variant" htmlFor="player_2">
+                {t("player2")}
+              </label>
+              <input
+                id="player_2"
+                className="input-line"
+                placeholder={t("playerPh")}
+                value={player2}
+                onChange={(e) => setPlayer2(e.target.value)}
+                maxLength={60}
+                required
+              />
+            </div>
+          </div>
           <div>
-            <label className="label" htmlFor="player_2">
-              {t("player2")}
-            </label>
-            <input
-              id="player_2"
-              className="input"
-              placeholder={t("playerPh")}
-              value={player2}
-              onChange={(e) => setPlayer2(e.target.value)}
-              maxLength={60}
-              required
-            />
+            <span className="label-caps mb-3 block text-on-surface-variant">
+              {t("skillLabel")}
+            </span>
+            <div className="grid grid-cols-3 gap-2 border-2 border-outline-variant p-1">
+              {SKILL_OPTIONS.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setSkill(opt)}
+                  className={`px-3 py-3 font-display text-sm uppercase tracking-wider transition-all sm:text-headline-sm ${
+                    skill === opt
+                      ? "bg-primary text-on-primary-container"
+                      : "text-on-surface-variant hover:text-stadium-white"
+                  }`}
+                >
+                  {skillLabel[opt]}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        <div>
-          <span className="label">{t("skillLabel")}</span>
-          <div className="grid grid-cols-3 gap-2 rounded-xl bg-neutral-100 p-1">
-            {SKILL_OPTIONS.map((opt) => (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => setSkill(opt)}
-                className={`rounded-lg py-2 text-sm font-medium transition ${
-                  skill === opt
-                    ? "bg-white text-court-700 shadow-sm"
-                    : "text-neutral-600 hover:text-neutral-900"
-                }`}
-              >
-                {skillLabel[opt]}
-              </button>
-            ))}
-          </div>
+        {error && (
+          <p className="mt-5 border-2 border-error bg-error-container/40 px-4 py-3 font-body text-sm text-error">
+            {error}
+          </p>
+        )}
+        {success && (
+          <p className="mt-5 border-2 border-secondary bg-secondary/10 px-4 py-3 font-body text-sm text-secondary">
+            {t("successMsg")}
+          </p>
+        )}
+
+        <div className="mt-8 flex justify-end">
+          <button
+            type="submit"
+            disabled={!valid || submitting}
+            className="btn-primary"
+          >
+            {submitting ? t("submitting") : t("registerBtn")}
+          </button>
         </div>
-      </div>
-
-      {error && (
-        <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-100">
-          {error}
-        </p>
-      )}
-      {success && (
-        <p className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-emerald-100">
-          {t("successMsg")}
-        </p>
-      )}
-
-      <div className="mt-6 flex items-center justify-end">
-        <button
-          type="submit"
-          disabled={!valid || submitting}
-          className="btn-primary"
-        >
-          {submitting ? t("submitting") : t("registerBtn")}
-        </button>
-      </div>
-    </form>
+      </form>
+    </Reveal>
   );
 }
+
+/* ------------------------------ TEAMS ------------------------------ */
+
+function TeamsSection({
+  teams,
+  count,
+}: {
+  teams: Awaited<ReturnType<typeof useTeams>>;
+  count: number;
+}) {
+  const t = useT();
+  return (
+    <section
+      id="teams"
+      className="mx-auto w-full max-w-[1440px] px-5 pb-16 sm:px-12 sm:pb-24"
+    >
+      <SectionHeading
+        eyebrow={t("teamsEyebrow")}
+        title={t("listHeading")}
+        meta={count > 0 ? `${count}` : undefined}
+      />
+      <Reveal>
+        <TeamList teams={teams} />
+      </Reveal>
+    </section>
+  );
+}
+
+/* ------------------------------ INFO ------------------------------ */
+
+function InfoSection() {
+  const t = useT();
+  return (
+    <section className="mx-auto w-full max-w-[1440px] px-5 pb-16 sm:px-12 sm:pb-24">
+      <SectionHeading
+        eyebrow={t("infoEyebrow")}
+        title={t("infoHeading")}
+      />
+      <Reveal>
+        <InfoCards />
+      </Reveal>
+    </section>
+  );
+}
+
+/* ------------------------------ VENUE ------------------------------ */
+
+function VenueSection() {
+  const t = useT();
+  return (
+    <section
+      id="venue"
+      className="mx-auto w-full max-w-[1440px] px-5 pb-20 sm:px-12 sm:pb-32"
+    >
+      <SectionHeading
+        eyebrow={t("venueEyebrow")}
+        title={t("venueHeading")}
+      />
+      <Reveal>
+        <VenueCard />
+      </Reveal>
+    </section>
+  );
+}
+
+/* ------------------------------ FOOTER ------------------------------ */
+
+function FooterSection() {
+  return (
+    <footer className="border-t-2 border-outline-variant bg-deep-void py-16 sm:py-24">
+      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-8 px-5 sm:px-12 md:flex-row md:items-end md:justify-between">
+        <div>
+          <span className="font-display text-display-md uppercase tracking-tight text-on-surface sm:text-display-lg">
+            Padel Cup 2026
+          </span>
+          <p className="label-caps mt-3 text-on-surface-variant">
+            © 2026 HILLSONG PADEL CUP · MUNICH
+          </p>
+        </div>
+        <div className="flex gap-6 text-on-surface-variant">
+          <a
+            href={TOURNAMENT.whatsappUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="transition-colors hover:text-secondary"
+            aria-label="WhatsApp Group"
+          >
+            <span className="material-symbols-outlined text-3xl">chat</span>
+          </a>
+          <a
+            href={TOURNAMENT.venue.appleMapsUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="transition-colors hover:text-primary"
+            aria-label="Apple Maps"
+          >
+            <span className="material-symbols-outlined text-3xl">map</span>
+          </a>
+          <a
+            href={TOURNAMENT.venue.website}
+            target="_blank"
+            rel="noreferrer"
+            className="transition-colors hover:text-tertiary"
+            aria-label="Casa Padel Website"
+          >
+            <span className="material-symbols-outlined text-3xl">stadium</span>
+          </a>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+/* ------------------------------ HELPERS ------------------------------ */
+
+function SectionHeading({
+  eyebrow,
+  title,
+  meta,
+}: {
+  eyebrow: string;
+  title: string;
+  meta?: string;
+}) {
+  return (
+    <Reveal className="mb-6 flex items-end justify-between sm:mb-10">
+      <div>
+        <p className="label-caps-lg text-primary">{eyebrow}</p>
+        <h2 className="mt-2 font-display text-display-md uppercase leading-none text-stadium-white sm:text-display-lg">
+          {title}
+        </h2>
+      </div>
+      {meta && (
+        <span className="font-display text-display-md leading-none text-on-surface-variant sm:text-display-lg">
+          {meta}
+        </span>
+      )}
+    </Reveal>
+  );
+}
+
+function Reveal({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      el.classList.add("in");
+      return;
+    }
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          el.classList.add("in");
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.1 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className={`reveal ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+// Avoid unused import error if SKILL_LABELS not directly referenced
+void SKILL_LABELS;

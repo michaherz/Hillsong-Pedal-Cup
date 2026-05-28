@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
-import type { BracketPos, Match, Team } from "../lib/database.types";
+import type { Match, Team } from "../lib/database.types";
 import { useT } from "../lib/i18n";
 import {
   buildSchedule,
@@ -215,20 +215,22 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
           : t("phaseFinished");
 
   return (
-    <section className="card p-6">
-      <header className="mb-4 flex items-center justify-between">
+    <section className="border-2 border-outline-variant bg-surface-container p-6 sm:p-8">
+      <header className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="text-base font-semibold">{t("tournamentSection")}</h2>
-          <p className="mt-0.5 text-sm text-neutral-500">{phaseLabel}</p>
+          <p className="label-caps text-primary">{t("tournamentSection")}</p>
+          <h2 className="mt-1 font-display text-headline-md uppercase text-stadium-white">
+            {phaseLabel}
+          </h2>
         </div>
       </header>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-3">
         {phase === "registration" && (
           <button
             onClick={startMexicano}
             disabled={busy || activeTeamCount < 4 || settings.registration_open}
-            className="btn-primary"
+            className="btn-sm"
           >
             {t("actionStartMexicano")}
           </button>
@@ -238,7 +240,7 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
           <button
             onClick={nextRound}
             disabled={busy || !isRoundComplete(matches, round)}
-            className="btn-primary"
+            className="btn-sm"
           >
             {t("actionNextRound")}
           </button>
@@ -248,7 +250,7 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
           <button
             onClick={startKO}
             disabled={busy || !isRoundComplete(matches, round)}
-            className="btn-primary"
+            className="btn-sm"
           >
             {t("actionStartKO")}
           </button>
@@ -258,7 +260,7 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
           <button
             onClick={startFinals}
             disabled={busy || !semisComplete(matches)}
-            className="btn-primary"
+            className="btn-sm"
           >
             {t("actionStartFinals")}
           </button>
@@ -268,7 +270,7 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
           <button
             onClick={finishTournament}
             disabled={busy || !finalsComplete(matches)}
-            className="btn-primary"
+            className="btn-sm"
           >
             {t("actionTournamentDone")}
           </button>
@@ -276,13 +278,13 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
       </div>
 
       {error && (
-        <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="mt-4 border-2 border-error bg-error-container/40 px-3 py-2 text-sm text-error">
           {error}
         </p>
       )}
 
       {phase !== "registration" && (
-        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <div className="mt-8 grid gap-8 lg:grid-cols-2">
           <MatchesByRound teams={teams} matches={matches} />
           <StandingsAdmin teams={teams} standings={standings} />
         </div>
@@ -308,19 +310,17 @@ function MatchesByRound({
   const grouped = useMemo(() => groupMatches(matches), [matches]);
   if (matches.length === 0) {
     return (
-      <div className="rounded-xl bg-neutral-50 p-4 text-sm text-neutral-500">
+      <div className="border-2 border-dashed border-outline-variant p-4 label-caps text-on-surface-variant">
         {t("noMatchesYet")}
       </div>
     );
   }
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-semibold">{t("matchesHeading")}</h3>
+    <div className="space-y-5">
+      <h3 className="label-caps-lg text-primary">{t("matchesHeading")}</h3>
       {grouped.map(({ key, label, items }) => (
         <div key={key} className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
-            {label}
-          </p>
+          <p className="label-caps text-on-surface-variant">{label}</p>
           <ul className="space-y-1.5">
             {items.map((m) => (
               <AdminMatchRow key={m.id} match={m} teams={teams} />
@@ -342,9 +342,7 @@ function groupMatches(matches: Match[]) {
   const groups: { key: string; label: string; items: Match[] }[] = [];
   for (const m of sorted) {
     const key =
-      m.phase === "mexicano"
-        ? `mex-${m.round}`
-        : `ko-${m.bracket_pos}`;
+      m.phase === "mexicano" ? `mex-${m.round}` : `ko-${m.bracket_pos}`;
     const label =
       m.phase === "mexicano"
         ? `Mexicano R${m.round}`
@@ -398,15 +396,21 @@ function AdminMatchRow({ match, teams }: { match: Match; teams: Team[] }) {
       : "—";
 
   return (
-    <li className="flex items-center gap-2 rounded-xl bg-neutral-50 px-3 py-2 text-sm">
-      <span className="w-12 shrink-0 font-mono text-xs text-neutral-500">
+    <li className="flex items-center gap-2 border-2 border-outline-variant bg-surface-container-high px-3 py-2 text-body-sm">
+      <span className="w-14 shrink-0 font-mono label-caps text-on-surface-variant">
         C{match.court}
         {match.wave ? `·W${match.wave}` : ""}
       </span>
       <span className="min-w-0 flex-1 truncate">
-        <span className="font-medium">{teamA}</span>
-        <span className="px-2 text-neutral-400">{t("matchVs")}</span>
-        <span className="font-medium">{teamB}</span>
+        <span className="font-display uppercase text-stadium-white">
+          {teamA}
+        </span>
+        <span className="px-2 label-caps text-on-surface-variant">
+          {t("matchVs")}
+        </span>
+        <span className="font-display uppercase text-stadium-white">
+          {teamB}
+        </span>
       </span>
       {editing ? (
         <div className="flex shrink-0 items-center gap-1">
@@ -416,27 +420,27 @@ function AdminMatchRow({ match, teams }: { match: Match; teams: Team[] }) {
             max={9}
             value={a}
             onChange={(e) => setA(e.target.value)}
-            className="w-12 rounded-lg border-0 bg-white px-2 py-1 text-center ring-1 ring-neutral-200 focus:ring-2 focus:ring-court-500 focus:outline-none"
+            className="w-12 border-2 border-outline-variant bg-surface-container px-2 py-1 text-center text-stadium-white focus:border-primary focus:outline-none"
           />
-          <span>–</span>
+          <span className="text-on-surface-variant">–</span>
           <input
             type="number"
             min={0}
             max={9}
             value={b}
             onChange={(e) => setB(e.target.value)}
-            className="w-12 rounded-lg border-0 bg-white px-2 py-1 text-center ring-1 ring-neutral-200 focus:ring-2 focus:ring-court-500 focus:outline-none"
+            className="w-12 border-2 border-outline-variant bg-surface-container px-2 py-1 text-center text-stadium-white focus:border-primary focus:outline-none"
           />
           <button
             onClick={save}
             disabled={busy}
-            className="rounded-lg bg-court-500 px-2 py-1 text-xs font-semibold text-white hover:bg-court-600 disabled:opacity-50"
+            className="bg-secondary px-2 py-1 label-caps text-on-secondary hover:bg-stadium-white disabled:opacity-50"
           >
             ✓
           </button>
           <button
             onClick={() => setEditing(false)}
-            className="rounded-lg px-2 py-1 text-xs text-neutral-500 hover:bg-neutral-200"
+            className="px-2 py-1 label-caps text-on-surface-variant hover:text-stadium-white"
           >
             ✕
           </button>
@@ -444,10 +448,10 @@ function AdminMatchRow({ match, teams }: { match: Match; teams: Team[] }) {
       ) : (
         <button
           onClick={() => setEditing(true)}
-          className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold ${
+          className={`shrink-0 border-2 px-2.5 py-1 label-caps transition-colors ${
             match.status === "done"
-              ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-              : "bg-court-50 text-court-700 hover:bg-court-100"
+              ? "border-secondary text-secondary hover:bg-secondary hover:text-on-secondary"
+              : "border-primary text-primary hover:bg-primary hover:text-on-primary-container"
           }`}
         >
           {scoreText}
@@ -466,17 +470,17 @@ function StandingsAdmin({
 }) {
   const t = useT();
   return (
-    <div className="space-y-2">
-      <h3 className="text-sm font-semibold">{t("standingsHeading")}</h3>
-      <table className="w-full text-sm">
+    <div className="space-y-3">
+      <h3 className="label-caps-lg text-primary">{t("standingsHeading")}</h3>
+      <table className="w-full text-body-sm">
         <thead>
-          <tr className="text-xs uppercase tracking-wider text-neutral-500">
-            <th className="px-2 py-1.5 text-left">{t("standingsPos")}</th>
-            <th className="px-2 py-1.5 text-left">{t("standingsTeam")}</th>
-            <th className="px-2 py-1.5 text-right">{t("standingsPlayed")}</th>
-            <th className="px-2 py-1.5 text-right">{t("standingsWL")}</th>
-            <th className="px-2 py-1.5 text-right">{t("standingsGames")}</th>
-            <th className="px-2 py-1.5 text-right">{t("standingsPoints")}</th>
+          <tr className="label-caps text-on-surface-variant">
+            <th className="px-2 py-2 text-left">{t("standingsPos")}</th>
+            <th className="px-2 py-2 text-left">{t("standingsTeam")}</th>
+            <th className="px-2 py-2 text-right">{t("standingsPlayed")}</th>
+            <th className="px-2 py-2 text-right">{t("standingsWL")}</th>
+            <th className="px-2 py-2 text-right">{t("standingsGames")}</th>
+            <th className="px-2 py-2 text-right">{t("standingsPoints")}</th>
           </tr>
         </thead>
         <tbody>
@@ -486,25 +490,27 @@ function StandingsAdmin({
             return (
               <tr
                 key={s.teamId}
-                className={`border-t border-neutral-100 ${
-                  isPodium ? "bg-court-50/40" : ""
+                className={`border-t-2 border-outline-variant ${
+                  isPodium ? "bg-primary/5" : ""
                 }`}
               >
-                <td className="px-2 py-2 font-mono">{s.position}</td>
-                <td className="px-2 py-2 truncate font-medium">
+                <td className="px-2 py-2 font-mono text-on-surface-variant">
+                  {s.position}
+                </td>
+                <td className="px-2 py-2 truncate font-display uppercase text-stadium-white">
                   {team?.team_name ?? "?"}
                 </td>
-                <td className="px-2 py-2 text-right tabular-nums">
+                <td className="px-2 py-2 text-right tabular-nums text-on-surface">
                   {s.played}
                 </td>
-                <td className="px-2 py-2 text-right tabular-nums">
+                <td className="px-2 py-2 text-right tabular-nums text-on-surface">
                   {s.wins}-{s.losses}
                 </td>
-                <td className="px-2 py-2 text-right tabular-nums">
+                <td className="px-2 py-2 text-right tabular-nums text-on-surface">
                   {s.gamesDiff > 0 ? "+" : ""}
                   {s.gamesDiff}
                 </td>
-                <td className="px-2 py-2 text-right font-semibold tabular-nums">
+                <td className="px-2 py-2 text-right font-display tabular-nums text-primary">
                   {s.points}
                 </td>
               </tr>
@@ -514,18 +520,4 @@ function StandingsAdmin({
       </table>
     </div>
   );
-}
-
-// helper used by panel: bracket position label
-export function bracketLabel(pos: BracketPos): string {
-  switch (pos) {
-    case "sf1":
-      return "SF1";
-    case "sf2":
-      return "SF2";
-    case "final":
-      return "Finale";
-    case "third":
-      return "3. Platz";
-  }
 }

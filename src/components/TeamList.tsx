@@ -6,14 +6,15 @@ export default function TeamList({ teams }: { teams: Team[] | null }) {
 
   if (teams === null) {
     return (
-      <div className="card divide-y divide-neutral-100">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="flex items-center gap-4 p-4">
-            <div className="h-10 w-10 animate-pulse rounded-full bg-neutral-100" />
-            <div className="flex-1 space-y-2">
-              <div className="h-3 w-32 animate-pulse rounded bg-neutral-100" />
-              <div className="h-3 w-48 animate-pulse rounded bg-neutral-100" />
-            </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="border-2 border-outline-variant bg-surface-container p-5"
+          >
+            <div className="h-3 w-24 animate-pulse bg-surface-bright" />
+            <div className="mt-3 h-4 w-40 animate-pulse bg-surface-bright" />
+            <div className="mt-2 h-3 w-32 animate-pulse bg-surface-bright" />
           </div>
         ))}
       </div>
@@ -23,30 +24,33 @@ export default function TeamList({ teams }: { teams: Team[] | null }) {
   const active = teams.filter((t) => t.status === "active");
   if (active.length === 0) {
     return (
-      <div className="card flex items-center justify-center p-10 text-sm text-neutral-500">
-        {t("listEmptyCard")}
+      <div className="border-2 border-dashed border-outline-variant bg-surface-container p-10 text-center">
+        <p className="font-display text-headline-sm uppercase text-on-surface-variant">
+          {t("listEmptyCard")}
+        </p>
       </div>
     );
   }
 
   return (
-    <ol className="card divide-y divide-neutral-100">
+    <ol className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {active.map((team, idx) => (
-        <li key={team.id} className="flex items-center gap-4 p-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-court-50 text-sm font-semibold text-court-700">
-            {idx + 1}
+        <li
+          key={team.id}
+          className="group relative border-2 border-outline-variant bg-surface-container p-5 transition-all hover:border-primary hover:shadow-hard-sm"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <span className="font-mono text-label-caps tracking-[0.12em] text-on-surface-variant">
+              #{String(idx + 1).padStart(2, "0")}
+            </span>
+            <SkillBadge level={team.skill_level} />
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <p className="truncate text-base font-semibold text-neutral-900">
-                {team.team_name}
-              </p>
-              <SkillBadge level={team.skill_level} />
-            </div>
-            <p className="mt-0.5 truncate text-sm text-neutral-500">
-              {team.player_1} · {team.player_2}
-            </p>
-          </div>
+          <p className="mt-3 truncate font-display text-headline-sm uppercase text-stadium-white sm:text-headline-md">
+            {team.team_name}
+          </p>
+          <p className="mt-1 truncate font-body text-body-sm text-on-surface-variant">
+            {team.player_1} · {team.player_2}
+          </p>
         </li>
       ))}
     </ol>
@@ -56,9 +60,9 @@ export default function TeamList({ teams }: { teams: Team[] | null }) {
 function SkillBadge({ level }: { level: Team["skill_level"] }) {
   const t = useT();
   const styles: Record<Team["skill_level"], string> = {
-    beginner: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-    intermediate: "bg-amber-50 text-amber-700 ring-amber-100",
-    advanced: "bg-rose-50 text-rose-700 ring-rose-100",
+    beginner: "border-secondary text-secondary",
+    intermediate: "border-tertiary text-tertiary",
+    advanced: "border-error text-error",
   };
   const labels: Record<Team["skill_level"], string> = {
     beginner: t("skillBeginner"),
@@ -67,7 +71,7 @@ function SkillBadge({ level }: { level: Team["skill_level"] }) {
   };
   return (
     <span
-      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ring-1 ring-inset ${styles[level]}`}
+      className={`label-caps shrink-0 border-2 px-2 py-0.5 ${styles[level]}`}
     >
       {labels[level]}
     </span>
