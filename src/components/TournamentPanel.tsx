@@ -215,7 +215,7 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
           : t("phaseFinished");
 
   return (
-    <section className="border-2 border-outline-variant bg-surface-container p-6 sm:p-8">
+    <section className="border-2 border-outline-variant bg-surface-container p-5">
       <header className="mb-6 flex items-center justify-between">
         <div>
           <p className="label-caps text-primary">{t("tournamentSection")}</p>

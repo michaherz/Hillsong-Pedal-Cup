@@ -226,32 +226,32 @@ function PublicLinkCard({ url }: { url: string }) {
   }
 
   return (
-    <div className="flex items-center gap-4 border-2 border-outline-variant bg-surface-container p-5">
-      <div className="border-2 border-stadium-white bg-stadium-white p-2">
-        <QRCodeSVG value={url || "https://"} size={72} />
-      </div>
-      <QRCodeCanvas
-        value={url || "https://"}
-        size={1024}
-        marginSize={4}
-        ref={canvasRef}
-        style={{ display: "none" }}
-      />
-      <div className="min-w-0 flex-1">
-        <p className="label-caps text-on-surface-variant">{t("publicLink")}</p>
-        <p className="mt-1 truncate font-mono text-body-sm text-stadium-white">
-          {url}
-        </p>
-        <div className="mt-2 flex gap-2">
+    <div className="border-2 border-outline-variant bg-surface-container p-5">
+      <p className="label-caps text-on-surface-variant">{t("publicLink")}</p>
+      <p className="mt-2 truncate font-mono text-body-sm text-stadium-white">
+        {url}
+      </p>
+      <div className="mt-4 flex items-center gap-4">
+        <div className="shrink-0 border-2 border-stadium-white bg-stadium-white p-1.5">
+          <QRCodeSVG value={url || "https://"} size={64} />
+        </div>
+        <QRCodeCanvas
+          value={url || "https://"}
+          size={1024}
+          marginSize={4}
+          ref={canvasRef}
+          style={{ display: "none" }}
+        />
+        <div className="flex flex-col gap-2">
           <button
             onClick={copy}
-            className="label-caps border-2 border-outline-variant px-2 py-1 text-on-surface transition-colors hover:border-primary hover:text-primary"
+            className="label-caps border-2 border-outline-variant px-3 py-1.5 text-on-surface transition-colors hover:border-primary hover:text-primary"
           >
             {copied ? t("copied") : t("copy")}
           </button>
           <button
             onClick={download}
-            className="label-caps border-2 border-outline-variant px-2 py-1 text-on-surface transition-colors hover:border-primary hover:text-primary"
+            className="label-caps border-2 border-outline-variant px-3 py-1.5 text-on-surface transition-colors hover:border-primary hover:text-primary"
           >
             {t("download")}
           </button>
