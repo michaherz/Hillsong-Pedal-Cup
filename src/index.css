@@ -111,22 +111,27 @@
   }
   .hero-curve-text {
     position: relative;
-    display: inline-block;
+    display: block;
+    width: 100%;
     text-align: center;
+    white-space: nowrap;
     will-change: transform;
-    /* extra vertical padding so italic + rotate(-2deg) doesn't get clipped */
     padding: 0.25em 0;
     transform-origin: center;
     /* spotlight defaults — far off-screen so no glow when not hovering */
     --spot-x: -9999px;
     --spot-y: -9999px;
-    --spot-r: 180px;
+    --spot-r: 200px;
   }
   .hero-spotlight-overlay {
     position: absolute;
     inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     pointer-events: none;
     color: #4edea3; /* secondary mint highlight */
+    white-space: nowrap;
     -webkit-mask-image: radial-gradient(
       circle var(--spot-r) at var(--spot-x) var(--spot-y),
       black 0%,

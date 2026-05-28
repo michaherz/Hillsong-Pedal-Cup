@@ -142,8 +142,8 @@ function Hero({ registrationOpen }: { registrationOpen: boolean | null }) {
     function onMove(e: MouseEvent) {
       if (!el) return;
       // subtle parallax of the whole headline based on mouse position vs. window center
-      const px = (window.innerWidth / 2 - e.pageX) / 60;
-      const py = (window.innerHeight / 2 - e.pageY) / 60;
+      const px = (window.innerWidth / 2 - e.pageX) / 120;
+      const py = (window.innerHeight / 2 - e.pageY) / 120;
       el.style.transform = `rotate(-2deg) translate(${px}px, ${py}px)`;
 
       // spotlight position in element-local coordinates
