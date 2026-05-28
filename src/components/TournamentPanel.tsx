@@ -216,7 +216,9 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
 
   return (
     <section className="border-2 border-outline-variant bg-surface-container p-5">
-      <header className="mb-6 flex items-center justify-between">
+      <FormatPreview phase={phase} round={round} />
+
+      <header className="mb-6 mt-6 flex items-center justify-between">
         <div>
           <p className="label-caps text-primary">{t("tournamentSection")}</p>
           <h2 className="mt-1 font-display text-headline-md uppercase text-stadium-white">
@@ -297,6 +299,95 @@ function teamLabel(teams: Team[], id: string | null): string {
   if (!id) return "—";
   const t = teams.find((x) => x.id === id);
   return t ? t.team_name : "?";
+}
+
+/* ---------------------------------------------------------- Format Preview */
+
+type Step = "reg" | "r1" | "r2" | "r3" | "ko" | "done";
+
+function FormatPreview({
+  phase,
+  round,
+}: {
+  phase: "registration" | "mexicano" | "knockout" | "finished";
+  round: number;
+}) {
+  const t = useT();
+
+  const currentStep: Step =
+    phase === "registration"
+      ? "reg"
+      : phase === "mexicano"
+        ? round <= 1
+          ? "r1"
+          : round === 2
+            ? "r2"
+            : "r3"
+        : phase === "knockout"
+          ? "ko"
+          : "done";
+
+  const steps: Array<{ key: Step; label: string }> = [
+    { key: "reg", label: t("stepReg") },
+    { key: "r1", label: t("stepR1") },
+    { key: "r2", label: t("stepR2") },
+    { key: "r3", label: t("stepR3") },
+    { key: "ko", label: t("stepKO") },
+    { key: "done", label: t("stepDone") },
+  ];
+
+  const order: Step[] = ["reg", "r1", "r2", "r3", "ko", "done"];
+  const currentIdx = order.indexOf(currentStep);
+
+  return (
+    <div className="border-2 border-primary/40 bg-deep-void p-4 sm:p-5">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="label-caps text-primary">{t("formatHeading")}</p>
+        <p className="hidden font-mono text-[10px] uppercase tracking-[0.12em] text-on-surface-variant sm:block">
+          {t("formatSubtitle")}
+        </p>
+      </div>
+
+      <ul className="mt-3 space-y-1.5 font-body text-body-sm text-on-surface-variant">
+        <li>· {t("formatRule1")}</li>
+        <li>· {t("formatRule2")}</li>
+        <li>· {t("formatRule3")}</li>
+      </ul>
+
+      <div className="mt-4 -mx-1 flex items-center gap-1 overflow-x-auto pb-1 sm:mt-5">
+        {steps.map((step, i) => {
+          const idx = order.indexOf(step.key);
+          const isCurrent = step.key === currentStep;
+          const isPast = idx < currentIdx;
+          return (
+            <div key={step.key} className="flex items-center gap-1">
+              <div
+                className={`shrink-0 border-2 px-2.5 py-1.5 transition-colors ${
+                  isCurrent
+                    ? "border-primary bg-primary text-on-primary-container"
+                    : isPast
+                      ? "border-secondary/60 bg-secondary/10 text-secondary"
+                      : "border-outline-variant text-on-surface-variant"
+                }`}
+              >
+                <span className="font-mono text-[10px] uppercase tracking-[0.12em]">
+                  {step.label}
+                </span>
+              </div>
+              {i < steps.length - 1 && (
+                <span
+                  aria-hidden
+                  className={`h-0.5 w-3 sm:w-5 ${
+                    idx < currentIdx ? "bg-secondary/60" : "bg-outline-variant"
+                  }`}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function MatchesByRound({
