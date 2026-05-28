@@ -34,6 +34,19 @@ Dated session notes. Newest entries on top. Decisions, rationale, what's mid-fli
 - Hero-Schrift auf iPad/Desktop überlief horizontal → cap auf `clamp(32px, min(7vw, 12vh), 78px)`
 - Image-Card überlappte Headline-Bottom durch `sm:-mt-16` → `sm:mt-6`
 
+### Hero-Headline final state (Ende Session 2026-05-28)
+
+Schrift: `clamp(40px, min(10vw, 16vh), 140px)` — bewusst groß. Caps:
+- Mobile (390px) → 40px
+- iPad portrait (1024px) → ~102px
+- Laptop (1440px) → 140px (max)
+- Desktop (1920px+) → 140px
+
+**Foreground & Overlap-Verhalten:**
+- `.hero-curve { overflow: visible; z-index: 30 }` → Headline darf horizontal/vertikal über die Container-Grenzen rausragen. Bei großer Schrift überlappt die Headline jetzt visuell die Image-Card unten — gewollt.
+- Spotlight-Overlay (`hero-spotlight-overlay`): `display: flex; align-items: center; justify-content: center` — exakt deckungsgleich auf Base-Text. Vorher Misalignment weil h1 inline-block + overlay-text nicht zentriert.
+- Parallax-Magnitude halbiert (Divisor 60 → 120) damit Mouse-Move-Translate die Headline nicht über Viewport-Rand schiebt.
+
 ### Aktueller State (Stand Ende Session)
 
 - Public-View: Hero, Anmeldung, Teams, Tournament (Standings+Bracket bei phase!=registration), Info, Venue → vollständig dark-themed, responsiv, animiert
@@ -47,10 +60,27 @@ Dated session notes. Newest entries on top. Decisions, rationale, what's mid-fli
 ### Offen für nächste Session
 
 User hat angekündigt: **Session-Cut → neue Session für Tournament-Modus + Darstellung**. Themen die wahrscheinlich kommen:
-- Public-Tournament-View weiter polieren (My-Team-Selector? Aktuelle-Runde-Highlight? Scrollspy?)
-- Bracket-Layout-Variationen
-- Möglicherweise Match-Scheduling-Sicht für Spieler ("Dein nächstes Match" Card)
-- Print-View / Beamer-Modus für Live-Tabelle
+
+**Tournament-Engine + Public-View Iteration:**
+- Public-Tournament-View weiter polieren — die existierende `PublicTournament.tsx` hat Standings + LTR-Bracket aber wahrscheinlich Verfeinerungs-Bedarf am visuellen Bracket-Layout
+- "Mein Team / Mein nächstes Match"-Card für Spieler — `localStorage["my-team-id"]` setzen via Tap auf Team-Liste, dann prominent "Court 1, Wave 2, gegen XYZ" anzeigen
+- Aktuelle-Runde-Highlight: in der Tabelle visuell hervorheben welche Runde gerade läuft
+- Match-Schedule-Grid: alle Matches der aktuellen + nächsten Runde mit Court + Wave-Slot
+- Print-View / Beamer-Modus für Live-Tabelle (großer TV vor Ort?)
+
+**Score-Mode Iteration:**
+- Format-Preview-Stepper existiert, aber Match-Scoring könnte komfortabler werden (große Buttons, Quick-Score-Templates wie 5-3, 5-4, 4-5, 3-5)
+- Possibly: per-Match-Timer? (4h Gesamtzeit, 22min/Match)
+
+**Datenstand:**
+- Schema-Migration `schema-tournament.sql` muss user noch in Supabase Studio einspielen (settings.tournament_phase + .current_round + .total_courts, matches.phase + .wave + .bracket_pos)
+- Realtime-Hook für matches existiert bereits (`useMatches`)
+
+**Wichtige Files für Tournament-Iteration:**
+- `src/lib/tournament-engine.ts` — Pure-Function Engine (seed, standings, complete-checks)
+- `src/components/TournamentPanel.tsx` — Admin-side
+- `src/components/PublicTournament.tsx` — Public-side
+- `src/lib/i18n.tsx` — Strings unter `tournament*`, `bracket*`, `standings*`, `step*`, `phase*`
 
 ### Pipeline-Chronik (Project)
 
@@ -60,3 +90,4 @@ User hat angekündigt: **Session-Cut → neue Session für Tournament-Modus + Da
 - 2026-05-28 Visual Redesign Velocity-Style komplett (Dark Mode, Anton, Marquees, Bento, Hard-Shadow)
 - 2026-05-28 Public-Tournament-View + Format-Stepper + Spotlight-Hover + Countdown + Padel-Rackets-Art
 - 2026-05-28 Big Bug-Bash (Hero-Clip, Marquee-Corners, Anchor-Scroll, Score-Width, Mobile-Tablet-Polish)
+- 2026-05-28 Headline-Polish-Final (z-30 Foreground, Overlay-Centering-Fix, Schrift bumped auf clamp 40-140)
