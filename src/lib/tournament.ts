@@ -1,7 +1,7 @@
 export const TOURNAMENT = {
   name: "Padel Cup 2026",
-  date: "Donnerstag, 18. Juni 2026",
-  dateISO: "2026-06-18",
+  date: "Samstag, 18. Juli 2026",
+  dateISO: "2026-07-18",
   startTime: "16:00",
   durationHours: 4,
   whatsappUrl: "https://chat.whatsapp.com/IsAViPUrBIEAtsjEQ6U9fh?mode=gi_t",

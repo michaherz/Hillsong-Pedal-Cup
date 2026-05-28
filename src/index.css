@@ -82,6 +82,16 @@
   .marquee-track {
     display: flex;
     width: max-content;
+    will-change: transform;
+  }
+  /* Marquee speeds: slower on mobile (smaller viewport = faster apparent speed otherwise) */
+  :root {
+    --marquee-dur: 90s;
+  }
+  @media (max-width: 640px) {
+    :root {
+      --marquee-dur: 140s;
+    }
   }
   /* Curved hero stage */
   .hero-curve {
@@ -104,14 +114,21 @@
   /* Reveal on scroll */
   .reveal {
     opacity: 0;
-    transform: translateY(40px);
+    transform: translateY(30px);
     transition:
-      opacity 1s ease,
-      transform 1s ease;
+      opacity 600ms ease,
+      transform 600ms ease;
   }
   .reveal.in {
     opacity: 1;
     transform: translateY(0);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
   }
   /* Bg dot pattern */
   .bg-dots {

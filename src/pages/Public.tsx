@@ -9,6 +9,7 @@ import VenueCard from "../components/VenueCard";
 import InfoCards from "../components/InfoCards";
 import LanguageToggle from "../components/LanguageToggle";
 import Marquee from "../components/Marquee";
+import Countdown from "../components/Countdown";
 
 const SKILL_OPTIONS: SkillLevel[] = ["beginner", "intermediate", "advanced"];
 
@@ -17,7 +18,6 @@ export default function Public() {
   const teams = useTeams();
   const settings = useSettings();
   const registrationOpen = settings?.registration_open ?? null;
-  const phase = settings?.tournament_phase ?? "registration";
 
   const activeCount = useMemo(
     () => (teams ?? []).filter((t) => t.status === "active").length,
@@ -32,15 +32,9 @@ export default function Public() {
       <main className="pt-24">
         <Hero registrationOpen={registrationOpen} />
 
-        <Marquee
-          text={`${t("marqueeBanner1")} • ${formatEventDate(TOURNAMENT.dateISO, "en").toUpperCase()} • ${TOURNAMENT.startTime}`}
-        />
+        <Marquee text={t("marqueeBanner1")} />
 
-        <BentoStats
-          teamCount={activeCount}
-          phase={phase}
-          registrationOpen={registrationOpen}
-        />
+        <BentoStats teamCount={activeCount} />
 
         <RegistrationSection
           registrationOpen={registrationOpen}
@@ -145,14 +139,14 @@ function Hero({ registrationOpen }: { registrationOpen: boolean | null }) {
         <div className="hero-curve">
           <h1
             ref={headRef}
-            className="hero-curve-text font-display text-[20vw] uppercase italic leading-none tracking-tight text-stadium-white sm:text-display-xl"
+            className="hero-curve-text font-display text-[20vw] uppercase italic leading-none text-stadium-white sm:text-display-xl"
             style={{ transform: "rotate(-2deg)" }}
           >
-            JOIN THE <span className="text-primary">PLAY</span>
+            THIS IS OUR&nbsp;<span className="text-primary">SUMMER</span>
           </h1>
         </div>
 
-        <Reveal className="relative -mt-8 mb-12 w-full sm:-mt-16 sm:mb-20">
+        <div className="relative -mt-8 mb-12 w-full sm:-mt-16 sm:mb-20">
           <div
             aria-hidden
             className="absolute -top-6 -left-2 h-20 w-20 border-l-4 border-t-4 border-secondary opacity-50 sm:-top-10 sm:-left-10 sm:h-40 sm:w-40"
@@ -166,7 +160,10 @@ function Hero({ registrationOpen }: { registrationOpen: boolean | null }) {
             <img
               src="/pineapple-park.jpg"
               alt="Casa Padel Pineapple Park"
-              className="aspect-[1.85] w-full object-cover grayscale transition-all duration-700 hover:grayscale-0"
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
+              className="aspect-[1.85] w-full bg-surface-container-high object-cover grayscale transition-all duration-700 hover:grayscale-0"
             />
 
             <div className="absolute bottom-4 left-4 max-w-md panel-void p-4 shadow-hard sm:bottom-10 sm:left-10 sm:p-6">
@@ -183,7 +180,7 @@ function Hero({ registrationOpen }: { registrationOpen: boolean | null }) {
               </p>
             </div>
           </div>
-        </Reveal>
+        </div>
       </div>
     </section>
   );
@@ -191,26 +188,10 @@ function Hero({ registrationOpen }: { registrationOpen: boolean | null }) {
 
 /* ------------------------------ BENTO STATS ------------------------------ */
 
-function BentoStats({
-  teamCount,
-  phase,
-  registrationOpen,
-}: {
-  teamCount: number;
-  phase: string;
-  registrationOpen: boolean | null;
-}) {
+function BentoStats({ teamCount }: { teamCount: number }) {
   const t = useT();
-  const isLive =
-    phase === "mexicano" || phase === "knockout";
-  const phaseTagline = isLive
-    ? t("liveTrackingActive")
-    : registrationOpen
-      ? t("liveTrackingWaiting")
-      : t("liveTrackingClosed");
-
   return (
-    <section className="mx-auto w-full max-w-[1440px] px-5 py-16 sm:px-12 sm:py-24">
+    <section className="mx-auto w-full max-w-[1440px] px-5 py-20 sm:px-12 sm:py-28">
       <div className="grid grid-cols-12 gap-4 sm:gap-6">
         <Reveal className="group relative col-span-12 overflow-hidden border-2 border-outline-variant bg-surface-container p-6 sm:p-10 md:col-span-8">
           <div
@@ -236,22 +217,7 @@ function BentoStats({
           </div>
         </Reveal>
 
-        <Reveal className="relative col-span-12 flex flex-col items-center justify-center overflow-hidden border-2 border-secondary bg-deep-void p-6 text-center sm:p-10 md:col-span-4">
-          <div className="bg-dots pointer-events-none absolute inset-0 opacity-10" />
-          <div className="mb-4 h-3 w-3 animate-pulse-glow rounded-full bg-secondary sm:mb-6 sm:h-4 sm:w-4" />
-          <h3 className="font-display text-headline-md uppercase text-secondary">
-            {t("liveTrackingHeadline")}
-          </h3>
-          <p className="label-caps mt-2 text-stadium-white">{phaseTagline}</p>
-          <div className="mt-6 h-1.5 w-full bg-primary/20">
-            <div
-              className="h-full bg-secondary transition-all duration-700"
-              style={{
-                width: `${Math.min(100, Math.max(8, (teamCount / 12) * 100))}%`,
-              }}
-            />
-          </div>
-        </Reveal>
+        <Countdown />
 
         <StatTile
           icon="schedule"
@@ -519,7 +485,7 @@ function TeamsSection({
 function InfoSection() {
   const t = useT();
   return (
-    <section className="mx-auto w-full max-w-[1440px] px-5 pb-16 sm:px-12 sm:pb-24">
+    <section className="mx-auto w-full max-w-[1440px] px-5 py-20 sm:px-12 sm:py-28">
       <SectionHeading
         eyebrow={t("infoEyebrow")}
         title={t("infoHeading")}
@@ -538,7 +504,7 @@ function VenueSection() {
   return (
     <section
       id="venue"
-      className="mx-auto w-full max-w-[1440px] px-5 pb-20 sm:px-12 sm:pb-32"
+      className="mx-auto w-full max-w-[1440px] px-5 pt-4 pb-20 sm:px-12 sm:pt-8 sm:pb-32"
     >
       <SectionHeading
         eyebrow={t("venueEyebrow")}
@@ -642,6 +608,8 @@ function Reveal({
       el.classList.add("in");
       return;
     }
+    // Fire as soon as any pixel enters viewport, with a 100px lead-in so animation
+    // starts before the user actually sees it (avoids "pop-in" feel).
     const obs = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -649,7 +617,7 @@ function Reveal({
           obs.disconnect();
         }
       },
-      { threshold: 0.1 },
+      { threshold: 0, rootMargin: "0px 0px -100px 0px" },
     );
     obs.observe(el);
     return () => obs.disconnect();

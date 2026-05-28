@@ -111,8 +111,8 @@ function Admin({ onSignOut }: { onSignOut: () => void }) {
 
   return (
     <div className="min-h-full bg-background">
-      <header className="border-b-2 border-outline-variant bg-surface-container">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-3">
+      <div className="mx-auto max-w-5xl space-y-4 px-5 py-5 sm:px-8 sm:py-8">
+        <header className="flex items-center justify-between border-2 border-outline-variant bg-surface-container px-5 py-4">
           <div className="flex items-center gap-3">
             <div className="h-2.5 w-2.5 animate-pulse-glow rounded-full bg-secondary" />
             <p className="font-display text-headline-sm uppercase text-stadium-white">
@@ -122,13 +122,14 @@ function Admin({ onSignOut }: { onSignOut: () => void }) {
               {TOURNAMENT.name}
             </span>
           </div>
-          <button onClick={onSignOut} className="label-caps text-on-surface-variant transition-colors hover:text-primary">
+          <button
+            onClick={onSignOut}
+            className="label-caps text-on-surface-variant transition-colors hover:text-primary"
+          >
             {t("signOut")}
           </button>
-        </div>
-      </header>
+        </header>
 
-      <main className="mx-auto max-w-5xl space-y-6 px-5 py-6">
         <div className="grid gap-4 lg:grid-cols-3">
           <RegistrationToggle
             open={settings?.registration_open ?? true}
@@ -159,7 +160,7 @@ function Admin({ onSignOut }: { onSignOut: () => void }) {
             settings={settings}
           />
         )}
-      </main>
+      </div>
     </div>
   );
 }
