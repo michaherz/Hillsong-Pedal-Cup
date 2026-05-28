@@ -16,21 +16,33 @@ export default function Marquee({ text, reverse, variant = "primary" }: Props) {
   const textClass =
     variant === "primary" ? "text-deep-void" : "text-primary";
 
+  // Alternate tilt direction: fwd marquee leans up-left, reverse leans up-right.
+  const tiltDeg = reverse ? 1.6 : -1.6;
+
   return (
-    <section className={`w-full overflow-hidden py-6 ${containerClass}`}>
+    // Outer clip box — slightly taller than the band so the rotated edges blend cleanly.
+    <div className="relative my-2 overflow-hidden py-2 sm:my-3 sm:py-3">
       <div
-        className={`marquee-track ${reverse ? "animate-marquee-rev" : "animate-marquee"}`}
-        style={{ animationDuration: "var(--marquee-dur, 90s)" }}
+        className={`-mx-[6%] py-5 sm:py-6 ${containerClass}`}
+        style={{
+          transform: `rotate(${tiltDeg}deg)`,
+          transformOrigin: "center",
+        }}
       >
-        {items.map((i) => (
-          <span
-            key={i}
-            className={`whitespace-pre font-display text-marquee uppercase ${textClass}`}
-          >
-            {segment}
-          </span>
-        ))}
+        <div
+          className={`marquee-track ${reverse ? "animate-marquee-rev" : "animate-marquee"}`}
+          style={{ animationDuration: "var(--marquee-dur, 90s)" }}
+        >
+          {items.map((i) => (
+            <span
+              key={i}
+              className={`whitespace-pre font-display text-marquee uppercase ${textClass}`}
+            >
+              {segment}
+            </span>
+          ))}
+        </div>
       </div>
-    </section>
+    </div>
   );
 }
