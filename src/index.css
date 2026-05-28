@@ -98,15 +98,15 @@
       --marquee-dur: 140s;
     }
   }
-  /* Curved hero stage — display headline with rotation, no clip */
+  /* Curved hero stage — display headline with rotation, no clip, foreground layer */
   .hero-curve {
     position: relative;
+    z-index: 30;
     width: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
-    overflow-x: clip;
-    overflow-y: visible;
+    overflow: visible;
     padding: 0.5em 0;
   }
   .hero-curve-text {
