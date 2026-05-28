@@ -3,13 +3,14 @@ import { supabase } from "../lib/supabase";
 import { TOURNAMENT } from "../lib/tournament";
 import { type SkillLevel, SKILL_LABELS } from "../lib/database.types";
 import { formatEventDate, useLang, useT } from "../lib/i18n";
-import { useSettings, useTeams } from "../lib/hooks";
+import { useSettings, useTeams, useMatches } from "../lib/hooks";
 import TeamList from "../components/TeamList";
 import VenueCard from "../components/VenueCard";
 import InfoCards from "../components/InfoCards";
 import LanguageToggle from "../components/LanguageToggle";
 import Marquee from "../components/Marquee";
 import Countdown from "../components/Countdown";
+import PublicTournament from "../components/PublicTournament";
 
 const SKILL_OPTIONS: SkillLevel[] = ["beginner", "intermediate", "advanced"];
 
@@ -17,7 +18,9 @@ export default function Public() {
   const t = useT();
   const teams = useTeams();
   const settings = useSettings();
+  const matches = useMatches();
   const registrationOpen = settings?.registration_open ?? null;
+  const phase = settings?.tournament_phase ?? "registration";
 
   const activeCount = useMemo(
     () => (teams ?? []).filter((t) => t.status === "active").length,
@@ -41,6 +44,10 @@ export default function Public() {
         />
 
         <TeamsSection teams={teams} count={activeCount} />
+
+        {phase !== "registration" && teams && matches && (
+          <PublicTournament teams={teams} matches={matches} phase={phase} />
+        )}
 
         <Marquee text={t("marqueeBanner2")} variant="void" reverse />
 
