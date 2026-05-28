@@ -66,19 +66,19 @@ export default function Public() {
 function TopNav() {
   return (
     <header className="fixed top-0 z-40 w-full border-b-2 border-outline-variant bg-background/95 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-3 px-5 py-3 sm:px-12 md:py-4">
-        <a href="#top" className="flex shrink-0 items-center gap-2 sm:gap-4">
+      <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-3 px-4 py-3 sm:px-8 md:px-12 md:py-4">
+        <a href="#top" className="flex min-w-0 shrink items-center gap-2 sm:gap-3 md:gap-4">
           <img
             src="/hillsong-logo.png"
             alt="Hillsong"
-            className="h-8 w-8 shrink-0 sm:h-12 sm:w-12"
+            className="h-8 w-8 shrink-0 sm:h-10 sm:w-10 md:h-12 md:w-12"
           />
-          <span className="font-display text-xl uppercase tracking-tight text-primary sm:text-display-md">
+          <span className="truncate font-display text-lg uppercase tracking-tight text-primary sm:text-2xl md:text-3xl lg:text-display-md">
             Padel Cup 2026
           </span>
         </a>
-        <div className="flex items-center gap-3 sm:gap-6">
-          <nav className="hidden gap-6 md:flex lg:gap-10">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-4 md:gap-6">
+          <nav className="hidden gap-5 lg:flex lg:gap-8">
             <NavLink href="#register">Register</NavLink>
             <NavLink href="#teams">Teams</NavLink>
             <NavLink href="#venue">Venue</NavLink>
@@ -86,7 +86,7 @@ function TopNav() {
           <LanguageToggle />
           <a
             href="#register"
-            className="hidden whitespace-nowrap border-2 border-stadium-white bg-primary px-4 py-2 font-display text-sm uppercase tracking-wider text-on-primary-container shadow-hard-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 sm:inline-flex"
+            className="hidden whitespace-nowrap border-2 border-stadium-white bg-primary px-3 py-1.5 font-display text-xs uppercase tracking-wider text-on-primary-container shadow-hard-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 md:inline-flex md:px-4 md:py-2 md:text-sm"
           >
             Join Now
           </a>

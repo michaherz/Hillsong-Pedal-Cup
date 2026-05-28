@@ -98,23 +98,24 @@
       --marquee-dur: 140s;
     }
   }
-  /* Curved hero stage */
+  /* Curved hero stage — display headline with rotation, no clip */
   .hero-curve {
     position: relative;
-    height: clamp(120px, min(18vw, 22vh), 300px);
     width: 100%;
-    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow-x: clip;
+    overflow-y: visible;
+    padding: 0.25em 0;
   }
   .hero-curve-text {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 130%;
-    left: -15%;
+    display: inline-block;
     text-align: center;
     will-change: transform;
+    /* extra vertical padding so italic + rotate(-2deg) doesn't get clipped */
+    padding: 0.15em 0;
+    transform-origin: center;
   }
   /* Reveal on scroll */
   .reveal {
