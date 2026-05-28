@@ -203,7 +203,7 @@ function Hero({ registrationOpen }: { registrationOpen: boolean | null }) {
           </h1>
         </div>
 
-        <div className="relative -mt-1 mb-2 w-full sm:-mt-16 sm:mb-20">
+        <div className="relative mt-2 mb-2 w-full sm:mt-6 sm:mb-20">
           <div
             aria-hidden
             className="absolute -top-3 -left-1 h-12 w-12 border-l-4 border-t-4 border-secondary opacity-50 sm:-top-10 sm:-left-10 sm:h-40 sm:w-40"
