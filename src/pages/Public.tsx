@@ -112,18 +112,41 @@ function NavLink({ href, children }: { href: string; children: ReactNode }) {
 function Hero({ registrationOpen }: { registrationOpen: boolean | null }) {
   const t = useT();
   const { lang } = useLang();
-  const headRef = useRef<HTMLDivElement>(null);
+  const headRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
+    const el = headRef.current;
+    if (!el) return;
+
+    // Touch devices: keep the static rotate(-2deg) — no parallax, no stale transforms.
+    const hasFineHover =
+      typeof window !== "undefined" &&
+      window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+    function reset() {
+      if (el) el.style.transform = "rotate(-2deg)";
+    }
+
+    if (!hasFineHover) {
+      reset();
+      return;
+    }
+
     function onMove(e: MouseEvent) {
-      const el = headRef.current;
       if (!el) return;
       const x = (window.innerWidth / 2 - e.pageX) / 60;
       const y = (window.innerHeight / 2 - e.pageY) / 60;
       el.style.transform = `rotate(-2deg) translate(${x}px, ${y}px)`;
     }
+
     window.addEventListener("mousemove", onMove);
-    return () => window.removeEventListener("mousemove", onMove);
+    window.addEventListener("resize", reset);
+    window.addEventListener("orientationchange", reset);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("resize", reset);
+      window.removeEventListener("orientationchange", reset);
+    };
   }, []);
 
   const dotClass =
@@ -151,7 +174,7 @@ function Hero({ registrationOpen }: { registrationOpen: boolean | null }) {
             className="hero-curve-text whitespace-nowrap font-display uppercase italic leading-none text-stadium-white"
             style={{
               transform: "rotate(-2deg)",
-              fontSize: "clamp(38px, 11vw, 120px)",
+              fontSize: "clamp(38px, min(11vw, 14vh), 120px)",
             }}
           >
             THIS IS OUR&nbsp;<span className="text-primary">SUMMER</span>
