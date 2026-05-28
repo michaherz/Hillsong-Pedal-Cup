@@ -193,7 +193,7 @@ function Hero({ registrationOpen }: { registrationOpen: boolean | null }) {
             className="hero-curve-text whitespace-nowrap font-display uppercase italic leading-none text-stadium-white"
             style={{
               transform: "rotate(-2deg)",
-              fontSize: "clamp(32px, min(7vw, 12vh), 78px)",
+              fontSize: "clamp(40px, min(10vw, 16vh), 140px)",
             }}
           >
             THIS IS OUR&nbsp;<span className="text-primary">SUMMER</span>
