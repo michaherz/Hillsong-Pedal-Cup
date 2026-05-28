@@ -27,7 +27,6 @@ export default function Public() {
   return (
     <div className="min-h-full overflow-x-hidden bg-background">
       <TopNav />
-      <LanguageToggle />
 
       <main className="pt-16 sm:pt-24">
         <Hero registrationOpen={registrationOpen} />
@@ -60,28 +59,31 @@ export default function Public() {
 function TopNav() {
   return (
     <header className="fixed top-0 z-40 w-full border-b-2 border-outline-variant bg-background/95 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between px-5 py-3 sm:px-12 md:py-4">
-        <a href="#top" className="flex items-center gap-3 sm:gap-4">
+      <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-3 px-5 py-3 sm:px-12 md:py-4">
+        <a href="#top" className="flex shrink-0 items-center gap-2 sm:gap-4">
           <img
             src="/hillsong-logo.png"
             alt="Hillsong"
-            className="h-9 w-9 shrink-0 sm:h-12 sm:w-12"
+            className="h-8 w-8 shrink-0 sm:h-12 sm:w-12"
           />
-          <span className="font-display text-2xl uppercase tracking-tight text-primary sm:text-display-md">
+          <span className="font-display text-xl uppercase tracking-tight text-primary sm:text-display-md">
             Padel Cup 2026
           </span>
         </a>
-        <nav className="hidden gap-6 md:flex lg:gap-10">
-          <NavLink href="#register">Register</NavLink>
-          <NavLink href="#teams">Teams</NavLink>
-          <NavLink href="#venue">Venue</NavLink>
-        </nav>
-        <a
-          href="#register"
-          className="hidden whitespace-nowrap border-2 border-stadium-white bg-primary px-4 py-2 font-display text-sm uppercase tracking-wider text-on-primary-container shadow-hard-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 sm:inline-flex"
-        >
-          Join Now
-        </a>
+        <div className="flex items-center gap-3 sm:gap-6">
+          <nav className="hidden gap-6 md:flex lg:gap-10">
+            <NavLink href="#register">Register</NavLink>
+            <NavLink href="#teams">Teams</NavLink>
+            <NavLink href="#venue">Venue</NavLink>
+          </nav>
+          <LanguageToggle />
+          <a
+            href="#register"
+            className="hidden whitespace-nowrap border-2 border-stadium-white bg-primary px-4 py-2 font-display text-sm uppercase tracking-wider text-on-primary-container shadow-hard-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 sm:inline-flex"
+          >
+            Join Now
+          </a>
+        </div>
       </div>
     </header>
   );
