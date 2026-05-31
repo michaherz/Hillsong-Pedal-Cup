@@ -134,9 +134,12 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
     }));
     const { error: insErr } = await supabase.from("matches").insert(inserts);
     if (insErr) {
-      setError(insErr.message);
-      setBusy(false);
-      return;
+      // 23505 = unique violation → another path already inserted this round. No-op.
+      if (insErr.code !== "23505") {
+        setError(insErr.message);
+        setBusy(false);
+        return;
+      }
     }
     await supabase
       .from("settings")
@@ -184,9 +187,11 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
     }));
     const { error: insErr } = await supabase.from("matches").insert(inserts);
     if (insErr) {
-      setError(insErr.message);
-      setBusy(false);
-      return;
+      if (insErr.code !== "23505") {
+        setError(insErr.message);
+        setBusy(false);
+        return;
+      }
     }
     await supabase
       .from("settings")
@@ -230,9 +235,11 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
     }));
     const { error: insErr } = await supabase.from("matches").insert(inserts);
     if (insErr) {
-      setError(insErr.message);
-      setBusy(false);
-      return;
+      if (insErr.code !== "23505") {
+        setError(insErr.message);
+        setBusy(false);
+        return;
+      }
     }
     await supabase
       .from("settings")
