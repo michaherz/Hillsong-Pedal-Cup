@@ -29,6 +29,8 @@ type Settings = {
   tournament_phase: "registration" | "mexicano" | "knockout" | "finished";
   current_round: number;
   total_courts: number;
+  set_target: number;
+  set_two_game_lead: boolean;
 };
 
 type Props = {
@@ -43,6 +45,13 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [scoringMatchId, setScoringMatchId] = useState<string | null>(null);
   const courts = settings.total_courts || 2;
+  const setRule = useMemo(
+    () => ({
+      target: settings.set_target ?? 6,
+      twoLead: settings.set_two_game_lead ?? true,
+    }),
+    [settings.set_target, settings.set_two_game_lead],
+  );
   const standings = useMemo(
     () => computeStandings(teams, matches),
     [teams, matches],
@@ -339,7 +348,13 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
     <section className="border-2 border-outline-variant bg-surface-container p-5">
       <FormatPreview phase={phase} round={round} />
 
-      <DemoSection teams={teams} matches={matches} round={round} phase={phase} />
+      <DemoSection
+        teams={teams}
+        matches={matches}
+        round={round}
+        phase={phase}
+        setRule={setRule}
+      />
 
       <header className="mb-6 mt-6 flex items-center justify-between">
         <div>
@@ -423,6 +438,7 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
         <LiveScoringModal
           match={scoringMatch}
           teams={teams}
+          setRule={setRule}
           onClose={() => setScoringMatchId(null)}
         />
       )}
@@ -738,11 +754,13 @@ function DemoSection({
   matches,
   round,
   phase,
+  setRule,
 }: {
   teams: Team[];
   matches: Match[];
   round: number;
   phase: "registration" | "mexicano" | "knockout" | "finished";
+  setRule: { target: number; twoLead: boolean };
 }) {
   const t = useT();
   const [busy, setBusy] = useState<"seed" | "score" | "reset" | null>(null);
@@ -776,7 +794,7 @@ function DemoSection({
     setBusy("score");
     setError(null);
     setInfo(null);
-    const { count, error: e } = await autoScoreRound(matches, teams, round);
+    const { count, error: e } = await autoScoreRound(matches, teams, round, setRule);
     setBusy(null);
     if (e) {
       setError(e);

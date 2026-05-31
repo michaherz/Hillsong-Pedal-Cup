@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Match, SetScore, Team } from "../lib/database.types";
 import { useT } from "../lib/i18n";
+import { DEFAULT_SET_RULE, type SetRule } from "../lib/tournament-engine";
 import {
   applyScoringUpdate,
   buildFinalScore,
@@ -12,12 +13,18 @@ import {
 type Props = {
   match: Match;
   teams: Team[];
+  setRule?: SetRule;
   onClose: () => void;
 };
 
 type Mode = "live" | "final";
 
-export default function LiveScoringModal({ match, teams, onClose }: Props) {
+export default function LiveScoringModal({
+  match,
+  teams,
+  setRule = DEFAULT_SET_RULE,
+  onClose,
+}: Props) {
   const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +61,7 @@ export default function LiveScoringModal({ match, teams, onClose }: Props) {
     if (busy || match.status === "done") return;
     setBusy(true);
     setError(null);
-    const update = bumpGame(match, side, delta);
+    const update = bumpGame(match, side, delta, setRule);
     const { error: e } = await applyScoringUpdate(match.id, update);
     setBusy(false);
     if (e) setError(e);
@@ -190,6 +197,7 @@ export default function LiveScoringModal({ match, teams, onClose }: Props) {
             match={match}
             teamAName={teamA?.team_name ?? "?"}
             teamBName={teamB?.team_name ?? "?"}
+            setRule={setRule}
             busy={busy}
             onError={setError}
             onSubmit={async (sets) => {
@@ -198,6 +206,7 @@ export default function LiveScoringModal({ match, teams, onClose }: Props) {
               const { update, error: validationError } = buildFinalScore(
                 match.best_of,
                 sets,
+                setRule,
               );
               if (validationError || !update) {
                 setError(validationError);
@@ -352,6 +361,7 @@ function FinalScoreForm({
   match,
   teamAName,
   teamBName,
+  setRule,
   busy,
   onError,
   onSubmit,
@@ -359,6 +369,7 @@ function FinalScoreForm({
   match: Match;
   teamAName: string;
   teamBName: string;
+  setRule: SetRule;
   busy: boolean;
   onError: (err: string | null) => void;
   onSubmit: (sets: SetScore[]) => Promise<void>;
@@ -440,7 +451,10 @@ function FinalScoreForm({
       </div>
 
       <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-on-surface-variant">
-        {t("scoringFinalRule")}
+        {t("scoringFinalRuleDynamic", {
+          target: setRule.target,
+          lead: setRule.twoLead ? t("scoringRuleWithLead") : t("scoringRuleNoLead"),
+        })}
       </p>
 
       <button

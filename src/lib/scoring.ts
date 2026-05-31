@@ -1,6 +1,11 @@
 import { supabase } from "./supabase";
 import type { Match, SetScore } from "./database.types";
-import { matchWon, setWon } from "./tournament-engine";
+import {
+  DEFAULT_SET_RULE,
+  matchWon,
+  setWon,
+  type SetRule,
+} from "./tournament-engine";
 
 /**
  * Update payload for one game-bump action. Computed pure-function-style so
@@ -23,6 +28,7 @@ export function bumpGame(
   match: Match,
   side: "a" | "b",
   delta: 1 | -1,
+  rule: SetRule = DEFAULT_SET_RULE,
 ): ScoringUpdate {
   let currentA = match.current_a;
   let currentB = match.current_b;
@@ -39,7 +45,7 @@ export function bumpGame(
   // Set-transition: when set is decided, push to history + reset current.
   // Only triggers on +1 (delta=1). On -1 we're correcting a mis-tap, no auto-close.
   if (delta === 1) {
-    const winner = setWon(currentA, currentB);
+    const winner = setWon(currentA, currentB, rule.target, rule.twoLead);
     if (winner) {
       setHistory = [...setHistory, { a: currentA, b: currentB }];
       if (winner === "a") setsA++;
@@ -104,12 +110,13 @@ export function resetScoring(): ScoringUpdate {
 
 /**
  * Build a final-result update from a list of set scores entered manually.
- * Validates: each set has a winner (≥6 + 2 lead), winner gets the right
+ * Validates: each set has a winner per the configured rule, winner gets the right
  * number of sets (1 for BO1, 2 for BO3), no extra sets after match decided.
  */
 export function buildFinalScore(
   bestOf: 1 | 3,
   sets: SetScore[],
+  rule: SetRule = DEFAULT_SET_RULE,
 ): { update: ScoringUpdate | null; error: string | null } {
   const need = bestOf === 1 ? 1 : 2;
   const cleanedSets: SetScore[] = [];
@@ -130,11 +137,14 @@ export function buildFinalScore(
         error: `Satz ${i + 1}: Spielergebnis fehlt.`,
       };
     }
-    const winner = setWon(s.a, s.b);
+    const winner = setWon(s.a, s.b, rule.target, rule.twoLead);
     if (!winner) {
+      const ruleHint = rule.twoLead
+        ? `mindestens ${rule.target}, mit 2 Vorsprung`
+        : `mindestens ${rule.target}, kein 2-Vorsprung nötig`;
       return {
         update: null,
-        error: `Satz ${i + 1}: ${s.a}-${s.b} ist kein gültiger Satz (mindestens 6, mit 2 Vorsprung).`,
+        error: `Satz ${i + 1}: ${s.a}-${s.b} ist kein gültiger Satz (${ruleHint}).`,
       };
     }
     if (setsA >= need || setsB >= need) {

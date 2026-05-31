@@ -51,6 +51,8 @@ export type Settings = {
   tournament_phase: TournamentPhase;
   current_round: number;
   total_courts: number;
+  set_target: number;
+  set_two_game_lead: boolean;
   updated_at: string;
 };
 

@@ -212,7 +212,18 @@ const STRINGS = {
     scoringFinalHeading: "Endergebnis eintragen",
     scoringFinalRule:
       "Pro Satz mind. 6 Spiele mit 2 Vorsprung. BO3: 2 Sätze zum Sieg.",
+    scoringFinalRuleDynamic:
+      "Pro Satz mind. {target} Spiele {lead}. BO3: 2 Sätze zum Sieg.",
+    scoringRuleWithLead: "mit 2 Vorsprung",
+    scoringRuleNoLead: "(ohne 2-Vorsprung)",
     scoringFinalSubmit: "Match abschließen",
+    // set rule config
+    setRuleHeading: "Set-Regel",
+    setRuleHint: "Aktiv für alle laufenden Matches",
+    setRuleTargetLabel: "First to",
+    setRuleLeadLabel: "2-Spiele-Vorsprung",
+    setRuleSummaryLead: "First to {target}, 2-Vorsprung",
+    setRuleSummaryNoLead: "First to {target}, ohne Vorsprung",
     // generic
     loadingShort: "Lade…",
   },
@@ -409,7 +420,17 @@ const STRINGS = {
     scoringFinalHeading: "Enter final score",
     scoringFinalRule:
       "Each set: at least 6 games with 2-game lead. BO3: 2 sets to win.",
+    scoringFinalRuleDynamic:
+      "Each set: at least {target} games {lead}. BO3: 2 sets to win.",
+    scoringRuleWithLead: "with 2-game lead",
+    scoringRuleNoLead: "(no lead requirement)",
     scoringFinalSubmit: "Finish match",
+    setRuleHeading: "Set rule",
+    setRuleHint: "Applies to all running matches",
+    setRuleTargetLabel: "First to",
+    setRuleLeadLabel: "Two-game lead",
+    setRuleSummaryLead: "First to {target}, 2-game lead",
+    setRuleSummaryNoLead: "First to {target}, no lead",
     loadingShort: "Loading…",
   },
 } as const;

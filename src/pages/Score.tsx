@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
 import type { Session } from "@supabase/supabase-js";
 import { ADMIN_EMAIL, supabase } from "../lib/supabase";
-import { type Team } from "../lib/database.types";
+import { type Settings, type Team } from "../lib/database.types";
 import { useMatches, useSettings, useTeams } from "../lib/hooks";
 import { TOURNAMENT } from "../lib/tournament";
 import { useT } from "../lib/i18n";
@@ -141,6 +141,8 @@ function Admin({ onSignOut }: { onSignOut: () => void }) {
           />
         </div>
 
+        {settings && <SetRuleCard settings={settings} />}
+
         <section className="border-2 border-outline-variant bg-surface-container">
           <header className="flex items-center justify-between border-b-2 border-outline-variant px-5 py-4">
             <h2 className="font-display text-headline-sm uppercase text-stadium-white">
@@ -275,6 +277,93 @@ function TeamCountCard({ count }: { count: number }) {
           hours: TOURNAMENT.durationHours,
         })}
       </p>
+    </div>
+  );
+}
+
+function SetRuleCard({ settings }: { settings: Settings }) {
+  const t = useT();
+  const [busy, setBusy] = useState(false);
+  const target = settings.set_target ?? 6;
+  const twoLead = settings.set_two_game_lead ?? true;
+
+  async function update(patch: Partial<Pick<Settings, "set_target" | "set_two_game_lead">>) {
+    if (busy) return;
+    setBusy(true);
+    await supabase.from("settings").update(patch).eq("id", 1);
+    setBusy(false);
+  }
+
+  return (
+    <div className="border-2 border-outline-variant bg-surface-container p-5">
+      <div className="flex items-baseline justify-between gap-3">
+        <div>
+          <p className="label-caps text-on-surface-variant">
+            {t("setRuleHeading")}
+          </p>
+          <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.12em] text-on-surface-variant">
+            {t("setRuleHint")}
+          </p>
+        </div>
+        <p className="font-display text-headline-sm uppercase text-stadium-white">
+          {twoLead
+            ? t("setRuleSummaryLead", { target })
+            : t("setRuleSummaryNoLead", { target })}
+        </p>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-4">
+        <div>
+          <p className="label-caps mb-2 text-on-surface-variant">
+            {t("setRuleTargetLabel")}
+          </p>
+          <div className="grid grid-cols-3 border-2 border-outline-variant p-1">
+            {[4, 5, 6].map((n) => (
+              <button
+                key={n}
+                onClick={() => update({ set_target: n })}
+                disabled={busy}
+                className={`px-3 py-2 font-display text-headline-sm uppercase transition-all ${
+                  target === n
+                    ? "bg-primary text-on-primary-container"
+                    : "text-on-surface-variant hover:text-stadium-white"
+                }`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="label-caps mb-2 text-on-surface-variant">
+            {t("setRuleLeadLabel")}
+          </p>
+          <div className="grid grid-cols-2 border-2 border-outline-variant p-1">
+            <button
+              onClick={() => update({ set_two_game_lead: true })}
+              disabled={busy}
+              className={`px-3 py-2 font-display text-headline-sm uppercase transition-all ${
+                twoLead
+                  ? "bg-primary text-on-primary-container"
+                  : "text-on-surface-variant hover:text-stadium-white"
+              }`}
+            >
+              An
+            </button>
+            <button
+              onClick={() => update({ set_two_game_lead: false })}
+              disabled={busy}
+              className={`px-3 py-2 font-display text-headline-sm uppercase transition-all ${
+                !twoLead
+                  ? "bg-primary text-on-primary-container"
+                  : "text-on-surface-variant hover:text-stadium-white"
+              }`}
+            >
+              Aus
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

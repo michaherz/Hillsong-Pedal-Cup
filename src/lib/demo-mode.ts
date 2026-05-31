@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import type { Match, SkillLevel, Team } from "./database.types";
+import { DEFAULT_SET_RULE, type SetRule } from "./tournament-engine";
 
 /* ---------------------------------------------------------- Demo team roster */
 
@@ -111,12 +112,14 @@ export async function seedDemoTeams(): Promise<{
 /**
  * Random-score every scheduled mexicano match in the given round.
  * Skill-aware: stronger team wins more often, but upsets happen.
- * Generates a single best-of-1 set per match (Mexicano rule).
+ * Generates a single best-of-1 set per match (Mexicano rule), respecting
+ * the configured set rule (target + optional 2-game lead).
  */
 export async function autoScoreRound(
   matches: Match[],
   teams: Team[],
   round: number,
+  rule: SetRule = DEFAULT_SET_RULE,
 ): Promise<{ count: number; error: string | null }> {
   const open = matches.filter(
     (m) =>
@@ -145,10 +148,12 @@ export async function autoScoreRound(
     const diff = a - b;
     const pAwin = 0.5 + diff * 0.13;
     const aWins = Math.random() < pAwin;
-    // Loser gets 0..4 games; winner needs 6 with ≥2 lead.
-    const loserScore = Math.floor(Math.random() * 5);
-    const setA = aWins ? 6 : loserScore;
-    const setB = aWins ? loserScore : 6;
+    // Loser gets 0..(target-1) games when no lead requirement,
+    // or 0..(target-2) when lead-of-2 is required (so winner reaches target with ≥2 lead).
+    const loserMax = rule.twoLead ? rule.target - 2 : rule.target - 1;
+    const loserScore = Math.floor(Math.random() * (loserMax + 1));
+    const setA = aWins ? rule.target : loserScore;
+    const setB = aWins ? loserScore : rule.target;
     const { error } = await supabase
       .from("matches")
       .update({

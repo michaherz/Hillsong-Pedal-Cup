@@ -210,14 +210,30 @@ export function bestOfForBracket(
 
 /**
  * Decide if the current set is decided.
- * Rule: first to 6 games AND at least 2 games ahead. No tiebreak — keep going.
+ * Default rule: first to 6 games AND at least 2 games ahead. No tiebreak — keep going.
+ * Configurable: target + twoLead from settings.
  * Returns "a" / "b" if a side has won, otherwise null.
  */
-export function setWon(a: number, b: number): "a" | "b" | null {
-  if (a >= 6 && a - b >= 2) return "a";
-  if (b >= 6 && b - a >= 2) return "b";
+export function setWon(
+  a: number,
+  b: number,
+  target = 6,
+  twoLead = true,
+): "a" | "b" | null {
+  if (twoLead) {
+    if (a >= target && a - b >= 2) return "a";
+    if (b >= target && b - a >= 2) return "b";
+  } else {
+    if (a >= target && a > b) return "a";
+    if (b >= target && b > a) return "b";
+  }
   return null;
 }
+
+/** Convenience type for passing the set-rule around. */
+export type SetRule = { target: number; twoLead: boolean };
+
+export const DEFAULT_SET_RULE: SetRule = { target: 6, twoLead: true };
 
 /** Decide if a match is won, given sets won + best_of. */
 export function matchWon(
