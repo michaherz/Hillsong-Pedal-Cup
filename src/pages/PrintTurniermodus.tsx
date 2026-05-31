@@ -287,9 +287,22 @@ export default function PrintTurniermodus() {
 const styles = `
   @page { size: A4; margin: 0; }
 
+  html, body {
+    background: #131313;
+    margin: 0;
+    padding: 0;
+  }
+
   @media print {
-    body { background: #131313 !important; }
-    .print-root { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    html, body {
+      background: #131313 !important;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+    .print-root {
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
   }
 
   .print-root {
@@ -301,6 +314,7 @@ const styles = `
 
   .page {
     width: 210mm;
+    min-height: 297mm;
     padding: 18mm 18mm 14mm;
     margin: 0 auto;
     box-sizing: border-box;
@@ -308,7 +322,11 @@ const styles = `
     break-after: page;
     background: #131313;
     position: relative;
+    /* Spacer to fill remaining page so dark bg covers when content is short. */
+    display: flex;
+    flex-direction: column;
   }
+  .page > :last-child { margin-bottom: auto; }
   .page:last-child {
     page-break-after: auto;
     break-after: auto;
