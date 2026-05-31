@@ -207,6 +207,12 @@ const STRINGS = {
       "Score wirklich auf 0 zurücksetzen? Alle gespielten Sätze gehen verloren.",
     scoringReset: "Score zurücksetzen",
     scoringClose: "Schließen",
+    scoringModeLive: "Live mitzählen",
+    scoringModeFinal: "Endergebnis eintragen",
+    scoringFinalHeading: "Endergebnis eintragen",
+    scoringFinalRule:
+      "Pro Satz mind. 6 Spiele mit 2 Vorsprung. BO3: 2 Sätze zum Sieg.",
+    scoringFinalSubmit: "Match abschließen",
     // generic
     loadingShort: "Lade…",
   },
@@ -398,6 +404,12 @@ const STRINGS = {
       "Really reset the score to 0? All played sets will be lost.",
     scoringReset: "Reset score",
     scoringClose: "Close",
+    scoringModeLive: "Live count",
+    scoringModeFinal: "Enter final score",
+    scoringFinalHeading: "Enter final score",
+    scoringFinalRule:
+      "Each set: at least 6 games with 2-game lead. BO3: 2 sets to win.",
+    scoringFinalSubmit: "Finish match",
     loadingShort: "Loading…",
   },
 } as const;

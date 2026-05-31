@@ -102,6 +102,78 @@ export function resetScoring(): ScoringUpdate {
   };
 }
 
+/**
+ * Build a final-result update from a list of set scores entered manually.
+ * Validates: each set has a winner (≥6 + 2 lead), winner gets the right
+ * number of sets (1 for BO1, 2 for BO3), no extra sets after match decided.
+ */
+export function buildFinalScore(
+  bestOf: 1 | 3,
+  sets: SetScore[],
+): { update: ScoringUpdate | null; error: string | null } {
+  const need = bestOf === 1 ? 1 : 2;
+  const cleanedSets: SetScore[] = [];
+  let setsA = 0;
+  let setsB = 0;
+
+  for (let i = 0; i < sets.length; i++) {
+    const s = sets[i];
+    if (s.a < 0 || s.b < 0) {
+      return { update: null, error: `Satz ${i + 1}: keine negativen Spiele.` };
+    }
+    if (s.a === 0 && s.b === 0) {
+      // Empty set — only allowed for the optional 3rd set in BO3 if match
+      // is already decided.
+      if (setsA >= need || setsB >= need) continue;
+      return {
+        update: null,
+        error: `Satz ${i + 1}: Spielergebnis fehlt.`,
+      };
+    }
+    const winner = setWon(s.a, s.b);
+    if (!winner) {
+      return {
+        update: null,
+        error: `Satz ${i + 1}: ${s.a}-${s.b} ist kein gültiger Satz (mindestens 6, mit 2 Vorsprung).`,
+      };
+    }
+    if (setsA >= need || setsB >= need) {
+      return {
+        update: null,
+        error: `Match war nach Satz ${i} bereits entschieden.`,
+      };
+    }
+    cleanedSets.push(s);
+    if (winner === "a") setsA++;
+    else setsB++;
+  }
+
+  if (setsA < need && setsB < need) {
+    return {
+      update: null,
+      error: `Match noch nicht entschieden — ${need} ${need === 1 ? "Satz" : "Sätze"} nötig.`,
+    };
+  }
+
+  const totalA = cleanedSets.reduce((sum, s) => sum + s.a, 0);
+  const totalB = cleanedSets.reduce((sum, s) => sum + s.b, 0);
+
+  return {
+    update: {
+      set_history: cleanedSets,
+      current_a: 0,
+      current_b: 0,
+      sets_a: setsA,
+      sets_b: setsB,
+      score_a: totalA,
+      score_b: totalB,
+      status: "done",
+      played_at: new Date().toISOString(),
+    },
+    error: null,
+  };
+}
+
 /** Format a match's scoring for compact display. */
 export function formatScoreLine(match: Match): string {
   if (match.set_history.length === 0 && match.current_a === 0 && match.current_b === 0) {
