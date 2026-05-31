@@ -110,6 +110,10 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
       setError("Runde noch nicht beendet.");
       return;
     }
+    // Idempotency guard: skip if next round already inserted (race protection).
+    if (matches.some((m) => m.phase === "mexicano" && m.round === round + 1)) {
+      return;
+    }
     setBusy(true);
     setError(null);
     const pairings = seedNextRound(standings);
@@ -150,6 +154,16 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
       setError(t("needTeamsMessage"));
       return;
     }
+    // Idempotency guard.
+    if (
+      matches.some(
+        (m) =>
+          m.phase === "knockout" &&
+          (m.bracket_pos === "sf1" || m.bracket_pos === "sf2"),
+      )
+    ) {
+      return;
+    }
     setBusy(true);
     setError(null);
     const semis = seedKOSemis(standings);
@@ -184,6 +198,16 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
   async function startFinals() {
     if (!semisComplete(matches)) {
       setError("Halbfinale noch nicht beendet.");
+      return;
+    }
+    // Idempotency guard.
+    if (
+      matches.some(
+        (m) =>
+          m.phase === "knockout" &&
+          (m.bracket_pos === "final" || m.bracket_pos === "third"),
+      )
+    ) {
       return;
     }
     setBusy(true);
@@ -237,63 +261,61 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
   useEffect(() => {
     if (advancingRef.current || busy) return;
 
-    async function tryAdvance() {
-      // Mexicano: if current round is fully done and we still have rounds left → next round.
-      if (phase === "mexicano") {
-        if (round > 0 && round < TOTAL_MEXICANO_ROUNDS && isRoundComplete(matches, round)) {
-          // Guard: if matches for round+1 already exist, skip.
-          const exists = matches.some(
-            (m) => m.phase === "mexicano" && m.round === round + 1,
-          );
-          if (!exists) {
-            advancingRef.current = true;
-            await nextRound();
-            advancingRef.current = false;
-          }
-          return;
-        }
-        // Last mexicano round done → start KO semis.
-        if (round >= TOTAL_MEXICANO_ROUNDS && isRoundComplete(matches, round)) {
-          const exists = matches.some(
-            (m) =>
-              m.phase === "knockout" &&
-              (m.bracket_pos === "sf1" || m.bracket_pos === "sf2"),
-          );
-          if (!exists && standings.length >= 4) {
-            advancingRef.current = true;
-            await startKO();
-            advancingRef.current = false;
-          }
-          return;
-        }
-      }
+    // Decide synchronously what (if anything) to do — pure read of current state.
+    type Action = "nextRound" | "startKO" | "startFinals" | "finishTournament";
+    let action: Action | null = null;
 
-      if (phase === "knockout") {
-        // Semis done → generate final + 3rd.
-        if (round === 1 && semisComplete(matches)) {
-          const exists = matches.some(
-            (m) =>
-              m.phase === "knockout" &&
-              (m.bracket_pos === "final" || m.bracket_pos === "third"),
-          );
-          if (!exists) {
-            advancingRef.current = true;
-            await startFinals();
-            advancingRef.current = false;
-          }
-          return;
-        }
-        // Finals done → set phase=finished.
-        if (round === 2 && finalsComplete(matches)) {
-          advancingRef.current = true;
-          await finishTournament();
-          advancingRef.current = false;
-          return;
-        }
+    if (phase === "mexicano") {
+      if (
+        round > 0 &&
+        round < TOTAL_MEXICANO_ROUNDS &&
+        isRoundComplete(matches, round) &&
+        !matches.some(
+          (m) => m.phase === "mexicano" && m.round === round + 1,
+        )
+      ) {
+        action = "nextRound";
+      } else if (
+        round >= TOTAL_MEXICANO_ROUNDS &&
+        isRoundComplete(matches, round) &&
+        standings.length >= 4 &&
+        !matches.some(
+          (m) =>
+            m.phase === "knockout" &&
+            (m.bracket_pos === "sf1" || m.bracket_pos === "sf2"),
+        )
+      ) {
+        action = "startKO";
+      }
+    } else if (phase === "knockout") {
+      if (round === 1 && semisComplete(matches)) {
+        const finalsExist = matches.some(
+          (m) =>
+            m.phase === "knockout" &&
+            (m.bracket_pos === "final" || m.bracket_pos === "third"),
+        );
+        if (!finalsExist) action = "startFinals";
+      } else if (round === 2 && finalsComplete(matches)) {
+        action = "finishTournament";
       }
     }
 
-    tryAdvance();
+    if (!action) return;
+
+    // SYNCHRONOUS lock — set BEFORE any async call so a re-fire of this effect
+    // (from realtime updates between now and the action returning) sees the lock.
+    advancingRef.current = true;
+
+    (async () => {
+      try {
+        if (action === "nextRound") await nextRound();
+        else if (action === "startKO") await startKO();
+        else if (action === "startFinals") await startFinals();
+        else if (action === "finishTournament") await finishTournament();
+      } finally {
+        advancingRef.current = false;
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matches, phase, round]);
 

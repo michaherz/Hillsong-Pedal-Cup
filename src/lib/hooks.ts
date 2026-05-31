@@ -30,7 +30,9 @@ export function useTeams() {
           setTeams((prev) => {
             const list = prev ?? [];
             if (payload.eventType === "INSERT") {
-              return [...list, payload.new as Team];
+              const next = payload.new as Team;
+              if (list.some((t) => t.id === next.id)) return list;
+              return [...list, next];
             }
             if (payload.eventType === "UPDATE") {
               return list.map((t) =>
@@ -122,7 +124,9 @@ export function useMatches() {
           setMatches((prev) => {
             const list = prev ?? [];
             if (payload.eventType === "INSERT") {
-              return [...list, payload.new as Match];
+              const next = payload.new as Match;
+              if (list.some((m) => m.id === next.id)) return list;
+              return [...list, next];
             }
             if (payload.eventType === "UPDATE") {
               return list.map((m) =>
