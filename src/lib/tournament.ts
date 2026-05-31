@@ -13,4 +13,8 @@ export const TOURNAMENT = {
     website: "https://casapadel.de",
   },
   courts: 2,
+  sisterCup: {
+    url: "https://hillsong-soccer-cup.vercel.app",
+    label: "Football Cup",
+  },
 } as const;

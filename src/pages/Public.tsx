@@ -9,6 +9,7 @@ import TeamList from "../components/TeamList";
 import VenueCard from "../components/VenueCard";
 import InfoCards from "../components/InfoCards";
 import LanguageToggle from "../components/LanguageToggle";
+import SisterCupLink from "../components/SisterCupLink";
 import Marquee from "../components/Marquee";
 import Countdown from "../components/Countdown";
 import PublicTournament from "../components/PublicTournament";
@@ -115,6 +116,7 @@ function TopNav() {
             <NavLink href="#venue">Venue</NavLink>
           </nav>
           <LanguageToggle />
+          <SisterCupLink />
           <a
             href="#register"
             className="hidden whitespace-nowrap border-2 border-stadium-white bg-primary px-3 py-1.5 font-display text-xs uppercase tracking-wider text-on-primary-container shadow-hard-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 md:inline-flex md:px-4 md:py-2 md:text-sm"
