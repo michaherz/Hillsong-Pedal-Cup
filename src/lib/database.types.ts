@@ -15,6 +15,7 @@ export type Team = {
   player_2: string;
   skill_level: SkillLevel;
   status: "active" | "withdrawn";
+  is_demo: boolean;
   created_at: string;
 };
 
@@ -31,6 +32,7 @@ export type Match = {
   score_b: number | null;
   status: "scheduled" | "in_progress" | "done";
   played_at: string | null;
+  is_demo: boolean;
   created_at: string;
 };
 
@@ -49,19 +51,21 @@ export type Database = {
     Tables: {
       teams: {
         Row: Team;
-        Insert: Omit<Team, "id" | "created_at" | "status"> & {
+        Insert: Omit<Team, "id" | "created_at" | "status" | "is_demo"> & {
           id?: string;
           created_at?: string;
           status?: Team["status"];
+          is_demo?: boolean;
         };
         Update: Partial<Omit<Team, "id" | "created_at">>;
         Relationships: [];
       };
       matches: {
         Row: Match;
-        Insert: Omit<Match, "id" | "created_at"> & {
+        Insert: Omit<Match, "id" | "created_at" | "is_demo"> & {
           id?: string;
           created_at?: string;
+          is_demo?: boolean;
         };
         Update: Partial<Omit<Match, "id" | "created_at">>;
         Relationships: [];

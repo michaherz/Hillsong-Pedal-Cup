@@ -43,7 +43,10 @@ export default function TeamList({ teams }: { teams: Team[] | null }) {
             <span className="font-mono text-label-caps tracking-[0.12em] text-on-surface-variant">
               #{String(idx + 1).padStart(2, "0")}
             </span>
-            <SkillBadge level={team.skill_level} />
+            <div className="flex shrink-0 gap-1.5">
+              {team.is_demo && <DemoBadge />}
+              <SkillBadge level={team.skill_level} />
+            </div>
           </div>
           <p className="mt-3 truncate font-display text-headline-sm uppercase text-stadium-white sm:text-headline-md">
             {team.team_name}
@@ -54,6 +57,15 @@ export default function TeamList({ teams }: { teams: Team[] | null }) {
         </li>
       ))}
     </ol>
+  );
+}
+
+function DemoBadge() {
+  const t = useT();
+  return (
+    <span className="label-caps shrink-0 border-2 border-tertiary bg-tertiary/15 px-2 py-0.5 text-tertiary">
+      {t("demoBadge")}
+    </span>
   );
 }
 

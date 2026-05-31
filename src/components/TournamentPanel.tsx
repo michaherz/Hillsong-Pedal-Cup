@@ -3,6 +3,13 @@ import { supabase } from "../lib/supabase";
 import type { Match, Team } from "../lib/database.types";
 import { useT } from "../lib/i18n";
 import {
+  autoScoreRound,
+  demoTeamCount,
+  hasDemoTeams,
+  resetDemo,
+  seedDemoTeams,
+} from "../lib/demo-mode";
+import {
   buildSchedule,
   computeStandings,
   finalsComplete,
@@ -67,6 +74,7 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
       score_b: null,
       status: "scheduled" as const,
       played_at: null,
+      is_demo: matchIsDemo(teams, s.teamA, s.teamB),
     }));
     const { error: insErr } = await supabase.from("matches").insert(inserts);
     if (insErr) {
@@ -106,6 +114,7 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
       score_b: null,
       status: "scheduled" as const,
       played_at: null,
+      is_demo: matchIsDemo(teams, s.teamA, s.teamB),
     }));
     const { error: insErr } = await supabase.from("matches").insert(inserts);
     if (insErr) {
@@ -144,6 +153,7 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
       score_b: null,
       status: "scheduled" as const,
       played_at: null,
+      is_demo: matchIsDemo(teams, s.teamA, s.teamB),
     }));
     const { error: insErr } = await supabase.from("matches").insert(inserts);
     if (insErr) {
@@ -178,6 +188,7 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
       score_b: null,
       status: "scheduled" as const,
       played_at: null,
+      is_demo: matchIsDemo(teams, s.teamA, s.teamB),
     }));
     const { error: insErr } = await supabase.from("matches").insert(inserts);
     if (insErr) {
@@ -217,6 +228,8 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
   return (
     <section className="border-2 border-outline-variant bg-surface-container p-5">
       <FormatPreview phase={phase} round={round} />
+
+      <DemoSection teams={teams} matches={matches} round={round} phase={phase} />
 
       <header className="mb-6 mt-6 flex items-center justify-between">
         <div>
@@ -299,6 +312,17 @@ function teamLabel(teams: Team[], id: string | null): string {
   if (!id) return "—";
   const t = teams.find((x) => x.id === id);
   return t ? t.team_name : "?";
+}
+
+/** A match counts as demo if both involved teams are demo. */
+function matchIsDemo(
+  teams: Team[],
+  teamAId: string | null,
+  teamBId: string | null,
+): boolean {
+  const a = teams.find((t) => t.id === teamAId);
+  const b = teams.find((t) => t.id === teamBId);
+  return Boolean(a?.is_demo && b?.is_demo);
 }
 
 /* ---------------------------------------------------------- Format Preview */
@@ -479,6 +503,14 @@ function AdminMatchRow({ match, teams }: { match: Match; teams: Team[] }) {
     setEditing(false);
   }
 
+  async function toggleLive() {
+    if (busy) return;
+    setBusy(true);
+    const next = match.status === "in_progress" ? "scheduled" : "in_progress";
+    await supabase.from("matches").update({ status: next }).eq("id", match.id);
+    setBusy(false);
+  }
+
   const teamA = teamLabel(teams, match.team_a_id);
   const teamB = teamLabel(teams, match.team_b_id);
   const scoreText =
@@ -503,6 +535,20 @@ function AdminMatchRow({ match, teams }: { match: Match; teams: Team[] }) {
           {teamB}
         </span>
       </span>
+      {match.status !== "done" && !editing && (
+        <button
+          onClick={toggleLive}
+          disabled={busy}
+          className={`shrink-0 border-2 px-2 py-1 label-caps transition-colors ${
+            match.status === "in_progress"
+              ? "border-secondary bg-secondary/15 text-secondary"
+              : "border-outline-variant text-on-surface-variant hover:border-secondary hover:text-secondary"
+          }`}
+          title={match.status === "in_progress" ? t("demoStopLive") : t("demoStartLive")}
+        >
+          {match.status === "in_progress" ? "● LIVE" : "▶"}
+        </button>
+      )}
       {editing ? (
         <div className="flex shrink-0 items-center gap-1">
           <input
@@ -609,6 +655,128 @@ function StandingsAdmin({
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------- Demo Section */
+
+function DemoSection({
+  teams,
+  matches,
+  round,
+  phase,
+}: {
+  teams: Team[];
+  matches: Match[];
+  round: number;
+  phase: "registration" | "mexicano" | "knockout" | "finished";
+}) {
+  const t = useT();
+  const [busy, setBusy] = useState<"seed" | "score" | "reset" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const demoCount = demoTeamCount(teams);
+  const hasDemo = hasDemoTeams(teams);
+
+  async function onSeed() {
+    if (hasDemo) {
+      setError(t("demoExistsWarn"));
+      return;
+    }
+    setBusy("seed");
+    setError(null);
+    setInfo(null);
+    const { count, error: e } = await seedDemoTeams();
+    setBusy(null);
+    if (e) {
+      setError(e);
+      return;
+    }
+    setInfo(t("demoSeeded") + ` (${count})`);
+  }
+
+  async function onAutoScore() {
+    if (phase !== "mexicano") {
+      setError(t("demoNeedsMexicano"));
+      return;
+    }
+    setBusy("score");
+    setError(null);
+    setInfo(null);
+    const { count, error: e } = await autoScoreRound(matches, teams, round);
+    setBusy(null);
+    if (e) {
+      setError(e);
+      return;
+    }
+    setInfo(`${count} matches scored`);
+  }
+
+  async function onReset() {
+    if (!confirm(t("demoConfirmReset"))) return;
+    setBusy("reset");
+    setError(null);
+    setInfo(null);
+    const { error: e } = await resetDemo();
+    setBusy(null);
+    if (e) {
+      setError(e);
+      return;
+    }
+    setInfo("✓");
+  }
+
+  return (
+    <div className="mt-4 border-2 border-tertiary/40 bg-tertiary/5 p-4 sm:p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <div>
+          <p className="label-caps text-tertiary">{t("demoSection")}</p>
+          {hasDemo && (
+            <p className="mt-1 font-body text-body-sm text-on-surface-variant">
+              {t("demoBannerBody", { count: demoCount })}
+            </p>
+          )}
+        </div>
+        <span className="hidden font-mono text-[10px] uppercase tracking-[0.12em] text-on-surface-variant sm:inline">
+          5 BEG · 3 INT · 2 ADV
+        </span>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          onClick={onSeed}
+          disabled={busy !== null || hasDemo}
+          className="border-2 border-tertiary px-3 py-1.5 label-caps text-tertiary transition-colors hover:bg-tertiary hover:text-deep-void disabled:opacity-40"
+        >
+          {busy === "seed" ? "…" : t("demoSeed")}
+        </button>
+        <button
+          onClick={onAutoScore}
+          disabled={busy !== null || phase !== "mexicano"}
+          className="border-2 border-outline-variant px-3 py-1.5 label-caps text-on-surface transition-colors hover:border-tertiary hover:text-tertiary disabled:opacity-40"
+        >
+          {busy === "score" ? "…" : t("demoAutoScore")}
+        </button>
+        <button
+          onClick={onReset}
+          disabled={busy !== null || !hasDemo}
+          className="border-2 border-error/50 px-3 py-1.5 label-caps text-error transition-colors hover:bg-error hover:text-stadium-white disabled:opacity-40"
+        >
+          {busy === "reset" ? "…" : t("demoReset")}
+        </button>
+      </div>
+
+      {error && (
+        <p className="mt-3 border-2 border-error bg-error-container/40 px-3 py-2 text-sm text-error">
+          {error}
+        </p>
+      )}
+      {info && !error && (
+        <p className="mt-3 border-2 border-secondary bg-secondary/10 px-3 py-2 text-sm text-secondary">
+          {info}
+        </p>
+      )}
     </div>
   );
 }

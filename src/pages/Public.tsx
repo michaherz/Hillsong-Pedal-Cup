@@ -4,6 +4,7 @@ import { TOURNAMENT } from "../lib/tournament";
 import { type SkillLevel, SKILL_LABELS } from "../lib/database.types";
 import { formatEventDate, useLang, useT } from "../lib/i18n";
 import { useSettings, useTeams, useMatches } from "../lib/hooks";
+import { demoTeamCount, hasDemoTeams } from "../lib/demo-mode";
 import TeamList from "../components/TeamList";
 import VenueCard from "../components/VenueCard";
 import InfoCards from "../components/InfoCards";
@@ -11,6 +12,7 @@ import LanguageToggle from "../components/LanguageToggle";
 import Marquee from "../components/Marquee";
 import Countdown from "../components/Countdown";
 import PublicTournament from "../components/PublicTournament";
+import LiveBoard from "../components/LiveBoard";
 
 const SKILL_OPTIONS: SkillLevel[] = ["beginner", "intermediate", "advanced"];
 
@@ -31,6 +33,8 @@ export default function Public() {
     <div className="min-h-full overflow-x-hidden bg-background">
       <TopNav />
 
+      {hasDemoTeams(teams) && <DemoBanner count={demoTeamCount(teams)} />}
+
       <main className="pt-16 sm:pt-24">
         <Hero registrationOpen={registrationOpen} />
 
@@ -42,6 +46,16 @@ export default function Public() {
           registrationOpen={registrationOpen}
           activeCount={activeCount}
         />
+
+        {phase !== "registration" && teams && matches && (
+          <LiveBoard
+            teams={teams}
+            matches={matches}
+            phase={phase}
+            currentRound={settings?.current_round ?? 0}
+            totalCourts={settings?.total_courts ?? 2}
+          />
+        )}
 
         <TeamsSection teams={teams} count={activeCount} />
 
@@ -57,6 +71,23 @@ export default function Public() {
 
         <FooterSection />
       </main>
+    </div>
+  );
+}
+
+function DemoBanner({ count }: { count: number }) {
+  const t = useT();
+  return (
+    <div className="fixed top-16 left-0 right-0 z-30 border-b-2 border-tertiary bg-tertiary/15 px-4 py-2 backdrop-blur sm:top-24">
+      <div className="mx-auto flex max-w-[1440px] items-center gap-3">
+        <span className="label-caps shrink-0 border-2 border-tertiary bg-tertiary/20 px-2 py-0.5 text-tertiary">
+          {t("demoBadge")}
+        </span>
+        <p className="truncate font-body text-body-sm text-tertiary sm:text-body-md">
+          <span className="font-display uppercase">{t("demoBannerTitle")}</span>{" "}
+          · {t("demoBannerBody", { count })}
+        </p>
+      </div>
     </div>
   );
 }

@@ -48,6 +48,11 @@ function teamName(teams: Team[], id: string | null | undefined): string {
   return teams.find((t) => t.id === id)?.team_name ?? "?";
 }
 
+function teamIsDemo(teams: Team[], id: string | null | undefined): boolean {
+  if (!id) return false;
+  return teams.find((t) => t.id === id)?.is_demo === true;
+}
+
 /* ---------------------------------------------------------- Standings */
 
 function StandingsBoard({
@@ -118,7 +123,14 @@ function StandingsBoard({
                     {s.position}
                   </td>
                   <td className="truncate px-3 py-3 font-display uppercase text-stadium-white sm:px-5 sm:text-headline-sm">
-                    {teamName(teams, s.teamId)}
+                    <span className="inline-flex items-center gap-2">
+                      {teamName(teams, s.teamId)}
+                      {teamIsDemo(teams, s.teamId) && (
+                        <span className="label-caps border-2 border-tertiary bg-tertiary/15 px-1.5 py-0 text-[10px] text-tertiary">
+                          DEMO
+                        </span>
+                      )}
+                    </span>
                   </td>
                   <td className="px-3 py-3 text-right tabular-nums text-on-surface sm:px-5">
                     {s.played}

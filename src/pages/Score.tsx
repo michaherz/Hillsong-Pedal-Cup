@@ -395,8 +395,13 @@ function AdminTeamRow({ team, index }: { team: Team; index: number }) {
         #{String(index + 1).padStart(2, "0")}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate font-display text-headline-sm uppercase text-stadium-white">
+        <p className="flex items-center gap-2 truncate font-display text-headline-sm uppercase text-stadium-white">
           {team.team_name}
+          {team.is_demo && (
+            <span className="label-caps shrink-0 border-2 border-tertiary bg-tertiary/15 px-1.5 py-0 text-[10px] text-tertiary">
+              {t("demoBadge")}
+            </span>
+          )}
         </p>
         <p className="truncate font-body text-body-sm text-on-surface-variant">
           {team.player_1} · {team.player_2} · {skillLabel[team.skill_level]}

@@ -172,6 +172,30 @@ const STRINGS = {
     winner: "Sieger",
     runnerUp: "2. Platz",
     third: "3. Platz",
+    // live board
+    liveBoardHeading: "Live am Court",
+    liveBoardSubtitle: "Aktuelle und kommende Matches in Echtzeit",
+    nowPlaying: "Jetzt",
+    upNext: "Als Nächstes",
+    courtFree: "Frei",
+    courtIdle: "Wartet auf nächste Runde",
+    finalScore: "Endstand",
+    // demo mode
+    demoBadge: "DEMO",
+    demoBannerTitle: "Demo-Daten aktiv",
+    demoBannerBody:
+      "{count} Demo-Teams sind im System. Vor dem Turnier mit Demo-Reset entfernen.",
+    demoSection: "Demo / Vorschau",
+    demoSeed: "10 Demo-Teams anlegen",
+    demoSeeded: "Demo-Teams angelegt ✓",
+    demoAutoScore: "Aktuelle Runde auto-scoren",
+    demoReset: "Demo zurücksetzen",
+    demoConfirmReset:
+      "Wirklich alle Demo-Teams + Demo-Matches löschen und Phase auf Anmeldung zurücksetzen?",
+    demoExistsWarn: "Demo-Teams existieren bereits. Erst zurücksetzen.",
+    demoNeedsMexicano: "Auto-Score nur während Mexicano-Phase.",
+    demoStartLive: "Match starten",
+    demoStopLive: "Match beenden",
     // generic
     loadingShort: "Lade…",
   },
@@ -328,6 +352,30 @@ const STRINGS = {
     winner: "Winner",
     runnerUp: "Runner-up",
     third: "3rd place",
+    // live board
+    liveBoardHeading: "Courtside live",
+    liveBoardSubtitle: "Current and upcoming matches in real time",
+    nowPlaying: "Now",
+    upNext: "Up next",
+    courtFree: "Free",
+    courtIdle: "Waiting for next round",
+    finalScore: "Final",
+    // demo mode
+    demoBadge: "DEMO",
+    demoBannerTitle: "Demo data active",
+    demoBannerBody:
+      "{count} demo teams are loaded. Use „Reset demo“ before the real tournament.",
+    demoSection: "Demo / preview",
+    demoSeed: "Seed 10 demo teams",
+    demoSeeded: "Demo teams seeded ✓",
+    demoAutoScore: "Auto-score current round",
+    demoReset: "Reset demo",
+    demoConfirmReset:
+      "Really delete all demo teams + demo matches and reset phase to „Registration“?",
+    demoExistsWarn: "Demo teams already exist. Reset first.",
+    demoNeedsMexicano: "Auto-score only during Mexicano phase.",
+    demoStartLive: "Start match",
+    demoStopLive: "End match",
     loadingShort: "Loading…",
   },
 } as const;
