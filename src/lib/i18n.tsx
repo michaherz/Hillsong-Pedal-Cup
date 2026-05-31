@@ -196,6 +196,17 @@ const STRINGS = {
     demoNeedsMexicano: "Auto-Score nur während Mexicano-Phase.",
     demoStartLive: "Match starten",
     demoStopLive: "Match beenden",
+    // live scoring
+    bestOf1: "Best of 1",
+    bestOf3: "Best of 3",
+    bestOf3Short: "BO3",
+    setsWon: "Sätze",
+    setHistory: "Sätze gespielt",
+    teamSide: "Team {side}",
+    scoringConfirmReset:
+      "Score wirklich auf 0 zurücksetzen? Alle gespielten Sätze gehen verloren.",
+    scoringReset: "Score zurücksetzen",
+    scoringClose: "Schließen",
     // generic
     loadingShort: "Lade…",
   },
@@ -376,6 +387,17 @@ const STRINGS = {
     demoNeedsMexicano: "Auto-score only during Mexicano phase.",
     demoStartLive: "Start match",
     demoStopLive: "End match",
+    // live scoring
+    bestOf1: "Best of 1",
+    bestOf3: "Best of 3",
+    bestOf3Short: "BO3",
+    setsWon: "Sets",
+    setHistory: "Sets played",
+    teamSide: "Team {side}",
+    scoringConfirmReset:
+      "Really reset the score to 0? All played sets will be lost.",
+    scoringReset: "Reset score",
+    scoringClose: "Close",
     loadingShort: "Loading…",
   },
 } as const;

@@ -325,9 +325,10 @@ function MatchCard({
   const t = useT();
   const teamA = teamName(teams, match.team_a_id);
   const teamB = teamName(teams, match.team_b_id);
-  const done = match.status === "done" && match.score_a != null && match.score_b != null;
-  const aWin = done && match.score_a! > match.score_b!;
-  const bWin = done && match.score_b! > match.score_a!;
+  const done = match.status === "done";
+  const aWin = done && match.sets_a > match.sets_b;
+  const bWin = done && match.sets_b > match.sets_a;
+  const setList = match.set_history.map((s) => `${s.a}-${s.b}`).join(", ");
   return (
     <div
       className={`min-w-[200px] border-2 transition-all ${
@@ -336,16 +337,42 @@ function MatchCard({
           : "border-outline-variant bg-surface-container-high"
       }`}
     >
-      <div className="border-b-2 border-outline-variant px-3 py-1.5">
+      <div className="flex items-center justify-between border-b-2 border-outline-variant px-3 py-1.5">
         <p className="label-caps text-on-surface-variant">{label}</p>
+        {match.best_of === 3 && (
+          <span className="label-caps border-2 border-tertiary/60 px-1.5 py-0 text-[10px] text-tertiary">
+            BO3
+          </span>
+        )}
       </div>
       <ul className="divide-y-2 divide-outline-variant">
-        <TeamLine name={teamA} score={match.score_a} winner={aWin} />
-        <TeamLine name={teamB} score={match.score_b} winner={bWin} />
+        <TeamLine
+          name={teamA}
+          sets={match.sets_a}
+          current={done ? null : match.current_a}
+          winner={aWin}
+        />
+        <TeamLine
+          name={teamB}
+          sets={match.sets_b}
+          current={done ? null : match.current_b}
+          winner={bWin}
+        />
       </ul>
-      {!done && (
+      {done && setList && (
+        <p className="border-t-2 border-outline-variant bg-surface-container px-3 py-1 font-mono text-[11px] tabular-nums text-on-surface-variant">
+          {setList}
+        </p>
+      )}
+      {!done && match.status === "scheduled" && (
         <p className="border-t-2 border-outline-variant bg-surface-container px-3 py-1 label-caps text-tertiary">
           {t("matchScheduled")}
+        </p>
+      )}
+      {match.status === "in_progress" && (
+        <p className="flex items-center gap-1.5 border-t-2 border-secondary bg-secondary/10 px-3 py-1 label-caps text-secondary">
+          <span className="inline-block h-1.5 w-1.5 animate-pulse-glow rounded-full bg-secondary" />
+          LIVE
         </p>
       )}
     </div>
@@ -354,11 +381,13 @@ function MatchCard({
 
 function TeamLine({
   name,
-  score,
+  sets,
+  current,
   winner,
 }: {
   name: string;
-  score: number | null;
+  sets: number;
+  current: number | null;
   winner: boolean;
 }) {
   return (
@@ -374,12 +403,17 @@ function TeamLine({
       >
         {name}
       </span>
-      <span
-        className={`shrink-0 font-mono tabular-nums ${
-          winner ? "text-primary" : "text-on-surface-variant"
-        }`}
-      >
-        {score ?? "—"}
+      <span className="flex shrink-0 items-baseline gap-2 font-mono tabular-nums">
+        <span
+          className={`text-headline-sm ${
+            winner ? "text-primary" : "text-on-surface-variant"
+          }`}
+        >
+          {sets}
+        </span>
+        {current != null && (
+          <span className="text-on-surface-variant text-body-sm">· {current}</span>
+        )}
       </span>
     </li>
   );
@@ -415,7 +449,7 @@ function ChampionCard({
     );
   }
   const champId =
-    match.score_a! > match.score_b! ? match.team_a_id : match.team_b_id;
+    match.sets_a > match.sets_b ? match.team_a_id : match.team_b_id;
   return (
     <div className="min-w-[180px] border-2 border-tertiary bg-deep-void px-4 py-5 text-center shadow-hard-tertiary">
       <p className="label-caps text-tertiary">{t("winner")}</p>
@@ -446,7 +480,7 @@ function ThirdCard({
     );
   }
   const winId =
-    match.score_a! > match.score_b! ? match.team_a_id : match.team_b_id;
+    match.sets_a > match.sets_b ? match.team_a_id : match.team_b_id;
   return (
     <div className="min-w-[160px] border-2 border-secondary bg-deep-void px-4 py-4 text-center">
       <p className="label-caps text-secondary">{t("third")}</p>

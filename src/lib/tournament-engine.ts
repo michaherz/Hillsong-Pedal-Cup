@@ -92,8 +92,8 @@ export function seedKOFinals(matches: Match[]): KOEntry[] {
   const sf1 = matches.find((m) => m.bracket_pos === "sf1" && m.status === "done");
   const sf2 = matches.find((m) => m.bracket_pos === "sf2" && m.status === "done");
   if (!sf1 || !sf2) return [];
-  const w = (m: Match) => (m.score_a! > m.score_b! ? m.team_a_id : m.team_b_id);
-  const l = (m: Match) => (m.score_a! > m.score_b! ? m.team_b_id : m.team_a_id);
+  const w = (m: Match) => (m.sets_a > m.sets_b ? m.team_a_id : m.team_b_id);
+  const l = (m: Match) => (m.sets_a > m.sets_b ? m.team_b_id : m.team_a_id);
   const finalA = w(sf1)!;
   const finalB = w(sf2)!;
   const thirdA = l(sf1)!;
@@ -140,11 +140,18 @@ export function computeStandings(teams: Team[], matches: Match[]): Standing[] {
     a.gamesAgainst += m.score_b;
     b.gamesFor += m.score_b;
     b.gamesAgainst += m.score_a;
-    if (m.score_a > m.score_b) {
+    // Winner: prefer sets_a/sets_b (set scoring), fall back to game total.
+    const aWon =
+      m.sets_a > m.sets_b ||
+      (m.sets_a === m.sets_b && m.score_a > m.score_b);
+    const bWon =
+      m.sets_b > m.sets_a ||
+      (m.sets_a === m.sets_b && m.score_b > m.score_a);
+    if (aWon) {
       a.wins++;
       b.losses++;
       a.points += 3;
-    } else if (m.score_b > m.score_a) {
+    } else if (bWon) {
       b.wins++;
       a.losses++;
       b.points += 3;
@@ -187,3 +194,50 @@ export function finalsComplete(matches: Match[]): boolean {
 }
 
 export const TOTAL_MEXICANO_ROUNDS = 3;
+
+/* ---------------------------------------------------------- Set scoring */
+
+/** Best-of-N for a given match phase + bracket slot. Final + 3rd place = 3, else 1. */
+export function bestOfForBracket(
+  phase: "mexicano" | "knockout",
+  bracketPos: BracketPos | null,
+): 1 | 3 {
+  if (phase === "knockout" && (bracketPos === "final" || bracketPos === "third")) {
+    return 3;
+  }
+  return 1;
+}
+
+/**
+ * Decide if the current set is decided.
+ * Rule: first to 6 games AND at least 2 games ahead. No tiebreak — keep going.
+ * Returns "a" / "b" if a side has won, otherwise null.
+ */
+export function setWon(a: number, b: number): "a" | "b" | null {
+  if (a >= 6 && a - b >= 2) return "a";
+  if (b >= 6 && b - a >= 2) return "b";
+  return null;
+}
+
+/** Decide if a match is won, given sets won + best_of. */
+export function matchWon(
+  setsA: number,
+  setsB: number,
+  bestOf: 1 | 3,
+): "a" | "b" | null {
+  const need = bestOf === 1 ? 1 : 2;
+  if (setsA >= need) return "a";
+  if (setsB >= need) return "b";
+  return null;
+}
+
+/** Sum of all games-for (across completed sets + current set). */
+export function totalGames(match: Match): { a: number; b: number } {
+  let a = match.current_a;
+  let b = match.current_b;
+  for (const s of match.set_history ?? []) {
+    a += s.a;
+    b += s.b;
+  }
+  return { a, b };
+}

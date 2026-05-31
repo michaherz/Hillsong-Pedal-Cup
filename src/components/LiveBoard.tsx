@@ -222,9 +222,9 @@ function MatchLines({
   const t = useT();
   const teamA = teams.find((tt) => tt.id === match.team_a_id);
   const teamB = teams.find((tt) => tt.id === match.team_b_id);
-  const done = match.status === "done" && match.score_a != null && match.score_b != null;
-  const aWin = done && match.score_a! > match.score_b!;
-  const bWin = done && match.score_b! > match.score_a!;
+  const done = match.status === "done";
+  const aWin = done && match.sets_a > match.sets_b;
+  const bWin = done && match.sets_b > match.sets_a;
   const phaseLabel =
     match.phase === "mexicano"
       ? `Mex R${match.round}${match.wave ? ` · W${match.wave}` : ""}`
@@ -236,21 +236,71 @@ function MatchLines({
             ? t("bracketFinal")
             : t("bracketThird");
 
+  // For done matches with multiple sets, show set-list. Otherwise show running set.
+  const setList = match.set_history.map((s) => `${s.a}-${s.b}`).join(", ");
+
   return (
     <div className="mt-2">
-      <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-on-surface-variant">
-        {phaseLabel}
-      </p>
-      <div className="mt-2 grid grid-cols-[1fr_auto] items-baseline gap-3">
-        <TeamRow team={teamA?.team_name ?? "?"} demo={teamA?.is_demo} winner={aWin} highlight={highlight} />
-        <ScoreCell value={match.score_a} winner={aWin} highlight={highlight} />
-        <TeamRow team={teamB?.team_name ?? "?"} demo={teamB?.is_demo} winner={bWin} highlight={highlight} />
-        <ScoreCell value={match.score_b} winner={bWin} highlight={highlight} />
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-on-surface-variant">
+          {phaseLabel}
+        </p>
+        {match.best_of === 3 && (
+          <span className="label-caps border-2 border-tertiary/60 px-1.5 py-0 text-[10px] text-tertiary">
+            {t("bestOf3Short")}
+          </span>
+        )}
       </div>
-      {done && (
-        <p className="mt-2 label-caps text-on-surface-variant">{t("finalScore")}</p>
+      <div className="mt-2 grid grid-cols-[1fr_auto_auto] items-baseline gap-x-4 gap-y-1">
+        <TeamRow
+          team={teamA?.team_name ?? "?"}
+          demo={teamA?.is_demo}
+          winner={aWin}
+          highlight={highlight}
+        />
+        <SetsCell value={done ? match.sets_a : match.sets_a} done={done} />
+        <ScoreCell
+          value={done ? null : match.current_a}
+          winner={aWin}
+          highlight={highlight}
+        />
+        <TeamRow
+          team={teamB?.team_name ?? "?"}
+          demo={teamB?.is_demo}
+          winner={bWin}
+          highlight={highlight}
+        />
+        <SetsCell value={done ? match.sets_b : match.sets_b} done={done} />
+        <ScoreCell
+          value={done ? null : match.current_b}
+          winner={bWin}
+          highlight={highlight}
+        />
+      </div>
+      {done && setList && (
+        <p className="mt-2 font-mono text-body-sm tabular-nums text-on-surface-variant">
+          {setList}
+        </p>
+      )}
+      {!done && match.set_history.length > 0 && (
+        <p className="mt-2 font-mono text-[11px] tabular-nums text-on-surface-variant">
+          {match.set_history.map((s, i) => `S${i + 1}: ${s.a}-${s.b}`).join("  ·  ")}
+        </p>
       )}
     </div>
+  );
+}
+
+function SetsCell({ value, done }: { value: number; done: boolean }) {
+  return (
+    <span
+      className={`shrink-0 text-right font-display tabular-nums ${
+        done ? "text-secondary" : "text-on-surface-variant"
+      }`}
+      title="Sätze"
+    >
+      {value}
+    </span>
   );
 }
 

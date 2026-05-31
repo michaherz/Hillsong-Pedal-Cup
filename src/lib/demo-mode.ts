@@ -110,8 +110,8 @@ export async function seedDemoTeams(): Promise<{
 
 /**
  * Random-score every scheduled mexicano match in the given round.
- * Skill-aware: better-skilled team wins more often, but upsets happen.
- * First-to-5 → winner = 5, loser = 0..4.
+ * Skill-aware: stronger team wins more often, but upsets happen.
+ * Generates a single best-of-1 set per match (Mexicano rule).
  */
 export async function autoScoreRound(
   matches: Match[],
@@ -145,14 +145,20 @@ export async function autoScoreRound(
     const diff = a - b;
     const pAwin = 0.5 + diff * 0.13;
     const aWins = Math.random() < pAwin;
-    const loserScore = Math.floor(Math.random() * 5); // 0..4
-    const scoreA = aWins ? 5 : loserScore;
-    const scoreB = aWins ? loserScore : 5;
+    // Loser gets 0..4 games; winner needs 6 with ≥2 lead.
+    const loserScore = Math.floor(Math.random() * 5);
+    const setA = aWins ? 6 : loserScore;
+    const setB = aWins ? loserScore : 6;
     const { error } = await supabase
       .from("matches")
       .update({
-        score_a: scoreA,
-        score_b: scoreB,
+        set_history: [{ a: setA, b: setB }],
+        current_a: 0,
+        current_b: 0,
+        sets_a: aWins ? 1 : 0,
+        sets_b: aWins ? 0 : 1,
+        score_a: setA,
+        score_b: setB,
         status: "done",
         played_at: new Date().toISOString(),
       })

@@ -19,6 +19,8 @@ export type Team = {
   created_at: string;
 };
 
+export type SetScore = { a: number; b: number };
+
 export type Match = {
   id: string;
   round: number;
@@ -30,6 +32,12 @@ export type Match = {
   team_b_id: string | null;
   score_a: number | null;
   score_b: number | null;
+  best_of: 1 | 3;
+  set_history: SetScore[];
+  current_a: number;
+  current_b: number;
+  sets_a: number;
+  sets_b: number;
   status: "scheduled" | "in_progress" | "done";
   played_at: string | null;
   is_demo: boolean;
@@ -62,10 +70,27 @@ export type Database = {
       };
       matches: {
         Row: Match;
-        Insert: Omit<Match, "id" | "created_at" | "is_demo"> & {
+        Insert: Omit<
+          Match,
+          | "id"
+          | "created_at"
+          | "is_demo"
+          | "best_of"
+          | "set_history"
+          | "current_a"
+          | "current_b"
+          | "sets_a"
+          | "sets_b"
+        > & {
           id?: string;
           created_at?: string;
           is_demo?: boolean;
+          best_of?: 1 | 3;
+          set_history?: SetScore[];
+          current_a?: number;
+          current_b?: number;
+          sets_a?: number;
+          sets_b?: number;
         };
         Update: Partial<Omit<Match, "id" | "created_at">>;
         Relationships: [];

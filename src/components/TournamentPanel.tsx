@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import type { Match, Team } from "../lib/database.types";
 import { useT } from "../lib/i18n";
@@ -10,6 +10,7 @@ import {
   seedDemoTeams,
 } from "../lib/demo-mode";
 import {
+  bestOfForBracket,
   buildSchedule,
   computeStandings,
   finalsComplete,
@@ -21,6 +22,7 @@ import {
   semisComplete,
   TOTAL_MEXICANO_ROUNDS,
 } from "../lib/tournament-engine";
+import LiveScoringModal from "./LiveScoringModal";
 
 type Settings = {
   registration_open: boolean;
@@ -39,6 +41,7 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
   const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [scoringMatchId, setScoringMatchId] = useState<string | null>(null);
   const courts = settings.total_courts || 2;
   const standings = useMemo(
     () => computeStandings(teams, matches),
@@ -48,6 +51,15 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
   const phase = settings.tournament_phase;
   const round = settings.current_round;
   const activeTeamCount = teams.filter((t) => t.status === "active").length;
+
+  // Keep the scoring modal in sync with realtime updates.
+  const scoringMatch = useMemo(
+    () =>
+      scoringMatchId
+        ? matches.find((m) => m.id === scoringMatchId) ?? null
+        : null,
+    [scoringMatchId, matches],
+  );
 
   async function startMexicano() {
     if (settings.registration_open) {
@@ -153,6 +165,7 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
       score_b: null,
       status: "scheduled" as const,
       played_at: null,
+      best_of: bestOfForBracket("knockout", s.bracketPos),
       is_demo: matchIsDemo(teams, s.teamA, s.teamB),
     }));
     const { error: insErr } = await supabase.from("matches").insert(inserts);
@@ -188,6 +201,7 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
       score_b: null,
       status: "scheduled" as const,
       played_at: null,
+      best_of: bestOfForBracket("knockout", s.bracketPos),
       is_demo: matchIsDemo(teams, s.teamA, s.teamB),
     }));
     const { error: insErr } = await supabase.from("matches").insert(inserts);
@@ -215,6 +229,73 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
       .eq("id", 1);
     setBusy(false);
   }
+
+  /* ---------------------------------------------------------- Auto-advance */
+  // Ref-based lock so we don't double-fire while a transition is in flight.
+  const advancingRef = useRef(false);
+
+  useEffect(() => {
+    if (advancingRef.current || busy) return;
+
+    async function tryAdvance() {
+      // Mexicano: if current round is fully done and we still have rounds left → next round.
+      if (phase === "mexicano") {
+        if (round > 0 && round < TOTAL_MEXICANO_ROUNDS && isRoundComplete(matches, round)) {
+          // Guard: if matches for round+1 already exist, skip.
+          const exists = matches.some(
+            (m) => m.phase === "mexicano" && m.round === round + 1,
+          );
+          if (!exists) {
+            advancingRef.current = true;
+            await nextRound();
+            advancingRef.current = false;
+          }
+          return;
+        }
+        // Last mexicano round done → start KO semis.
+        if (round >= TOTAL_MEXICANO_ROUNDS && isRoundComplete(matches, round)) {
+          const exists = matches.some(
+            (m) =>
+              m.phase === "knockout" &&
+              (m.bracket_pos === "sf1" || m.bracket_pos === "sf2"),
+          );
+          if (!exists && standings.length >= 4) {
+            advancingRef.current = true;
+            await startKO();
+            advancingRef.current = false;
+          }
+          return;
+        }
+      }
+
+      if (phase === "knockout") {
+        // Semis done → generate final + 3rd.
+        if (round === 1 && semisComplete(matches)) {
+          const exists = matches.some(
+            (m) =>
+              m.phase === "knockout" &&
+              (m.bracket_pos === "final" || m.bracket_pos === "third"),
+          );
+          if (!exists) {
+            advancingRef.current = true;
+            await startFinals();
+            advancingRef.current = false;
+          }
+          return;
+        }
+        // Finals done → set phase=finished.
+        if (round === 2 && finalsComplete(matches)) {
+          advancingRef.current = true;
+          await finishTournament();
+          advancingRef.current = false;
+          return;
+        }
+      }
+    }
+
+    tryAdvance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matches, phase, round]);
 
   const phaseLabel =
     phase === "registration"
@@ -300,9 +381,21 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
 
       {phase !== "registration" && (
         <div className="mt-8 grid gap-8 lg:grid-cols-2">
-          <MatchesByRound teams={teams} matches={matches} />
+          <MatchesByRound
+            teams={teams}
+            matches={matches}
+            onOpenScoring={(m) => setScoringMatchId(m.id)}
+          />
           <StandingsAdmin teams={teams} standings={standings} />
         </div>
+      )}
+
+      {scoringMatch && (
+        <LiveScoringModal
+          match={scoringMatch}
+          teams={teams}
+          onClose={() => setScoringMatchId(null)}
+        />
       )}
     </section>
   );
@@ -417,9 +510,11 @@ function FormatPreview({
 function MatchesByRound({
   teams,
   matches,
+  onOpenScoring,
 }: {
   teams: Team[];
   matches: Match[];
+  onOpenScoring: (m: Match) => void;
 }) {
   const t = useT();
   const grouped = useMemo(() => groupMatches(matches), [matches]);
@@ -438,7 +533,12 @@ function MatchesByRound({
           <p className="label-caps text-on-surface-variant">{label}</p>
           <ul className="space-y-1.5">
             {items.map((m) => (
-              <AdminMatchRow key={m.id} match={m} teams={teams} />
+              <AdminMatchRow
+                key={m.id}
+                match={m}
+                teams={teams}
+                onOpenScoring={onOpenScoring}
+              />
             ))}
           </ul>
         </div>
@@ -478,45 +578,26 @@ function groupMatches(matches: Match[]) {
   return groups;
 }
 
-function AdminMatchRow({ match, teams }: { match: Match; teams: Team[] }) {
+function AdminMatchRow({
+  match,
+  teams,
+  onOpenScoring,
+}: {
+  match: Match;
+  teams: Team[];
+  onOpenScoring: (match: Match) => void;
+}) {
   const t = useT();
-  const [editing, setEditing] = useState(false);
-  const [a, setA] = useState(match.score_a?.toString() ?? "");
-  const [b, setB] = useState(match.score_b?.toString() ?? "");
-  const [busy, setBusy] = useState(false);
-
-  async function save() {
-    const sa = Number(a);
-    const sb = Number(b);
-    if (Number.isNaN(sa) || Number.isNaN(sb)) return;
-    setBusy(true);
-    await supabase
-      .from("matches")
-      .update({
-        score_a: sa,
-        score_b: sb,
-        status: "done",
-        played_at: new Date().toISOString(),
-      })
-      .eq("id", match.id);
-    setBusy(false);
-    setEditing(false);
-  }
-
-  async function toggleLive() {
-    if (busy) return;
-    setBusy(true);
-    const next = match.status === "in_progress" ? "scheduled" : "in_progress";
-    await supabase.from("matches").update({ status: next }).eq("id", match.id);
-    setBusy(false);
-  }
 
   const teamA = teamLabel(teams, match.team_a_id);
   const teamB = teamLabel(teams, match.team_b_id);
-  const scoreText =
-    match.status === "done" && match.score_a != null && match.score_b != null
-      ? `${match.score_a}–${match.score_b}`
-      : "—";
+
+  const compact =
+    match.status === "done"
+      ? match.set_history.map((s) => `${s.a}-${s.b}`).join(", ") || "—"
+      : match.status === "in_progress"
+        ? `${match.sets_a}·${match.sets_b}  |  ${match.current_a}–${match.current_b}`
+        : "—";
 
   return (
     <li className="flex items-center gap-2 border-2 border-outline-variant bg-surface-container-high px-3 py-2 text-body-sm">
@@ -534,66 +615,28 @@ function AdminMatchRow({ match, teams }: { match: Match; teams: Team[] }) {
         <span className="font-display uppercase text-stadium-white">
           {teamB}
         </span>
+        {match.best_of === 3 && (
+          <span className="ml-2 label-caps border-2 border-tertiary/60 px-1.5 py-0 text-[10px] text-tertiary">
+            {t("bestOf3Short")}
+          </span>
+        )}
       </span>
-      {match.status !== "done" && !editing && (
-        <button
-          onClick={toggleLive}
-          disabled={busy}
-          className={`shrink-0 border-2 px-2 py-1 label-caps transition-colors ${
-            match.status === "in_progress"
-              ? "border-secondary bg-secondary/15 text-secondary"
-              : "border-outline-variant text-on-surface-variant hover:border-secondary hover:text-secondary"
-          }`}
-          title={match.status === "in_progress" ? t("demoStopLive") : t("demoStartLive")}
-        >
-          {match.status === "in_progress" ? "● LIVE" : "▶"}
-        </button>
+      {match.status === "in_progress" && (
+        <span className="shrink-0 label-caps flex items-center gap-1 text-secondary">
+          <span className="inline-block h-1.5 w-1.5 animate-pulse-glow rounded-full bg-secondary" />
+          LIVE
+        </span>
       )}
-      {editing ? (
-        <div className="flex shrink-0 items-center gap-1">
-          <input
-            type="number"
-            min={0}
-            max={9}
-            value={a}
-            onChange={(e) => setA(e.target.value)}
-            className="w-12 border-2 border-outline-variant bg-surface-container px-2 py-1 text-center text-stadium-white focus:border-primary focus:outline-none"
-          />
-          <span className="text-on-surface-variant">–</span>
-          <input
-            type="number"
-            min={0}
-            max={9}
-            value={b}
-            onChange={(e) => setB(e.target.value)}
-            className="w-12 border-2 border-outline-variant bg-surface-container px-2 py-1 text-center text-stadium-white focus:border-primary focus:outline-none"
-          />
-          <button
-            onClick={save}
-            disabled={busy}
-            className="bg-secondary px-2 py-1 label-caps text-on-secondary hover:bg-stadium-white disabled:opacity-50"
-          >
-            ✓
-          </button>
-          <button
-            onClick={() => setEditing(false)}
-            className="px-2 py-1 label-caps text-on-surface-variant hover:text-stadium-white"
-          >
-            ✕
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={() => setEditing(true)}
-          className={`shrink-0 border-2 px-2.5 py-1 label-caps transition-colors ${
-            match.status === "done"
-              ? "border-secondary text-secondary hover:bg-secondary hover:text-on-secondary"
-              : "border-primary text-primary hover:bg-primary hover:text-on-primary-container"
-          }`}
-        >
-          {scoreText}
-        </button>
-      )}
+      <button
+        onClick={() => onOpenScoring(match)}
+        className={`shrink-0 border-2 px-2.5 py-1 label-caps font-mono transition-colors ${
+          match.status === "done"
+            ? "border-secondary text-secondary hover:bg-secondary hover:text-on-secondary"
+            : "border-primary text-primary hover:bg-primary hover:text-on-primary-container"
+        }`}
+      >
+        {compact}
+      </button>
     </li>
   );
 }
