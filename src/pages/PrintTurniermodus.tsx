@@ -301,15 +301,23 @@ const styles = `
 
   .page {
     width: 210mm;
-    min-height: 297mm;
-    padding: 22mm 18mm;
+    padding: 18mm 18mm 14mm;
     margin: 0 auto;
     box-sizing: border-box;
     page-break-after: always;
+    break-after: page;
     background: #131313;
     position: relative;
   }
-  .page:last-child { page-break-after: auto; }
+  .page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+  /* Keep heavy blocks together where possible */
+  .schedule, .cards, .players, .rule-box, .bigsteps li {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 
   .hero {
     border-left: 6px solid #93ccff;
@@ -330,8 +338,8 @@ const styles = `
     text-transform: uppercase;
     line-height: 0.85;
     letter-spacing: -0.01em;
-    font-size: 90px;
-    margin: 0 0 8mm 0;
+    font-size: 72px;
+    margin: 0 0 7mm 0;
     color: #ffffff;
   }
   .accent { color: #93ccff; }
