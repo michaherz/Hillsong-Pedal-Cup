@@ -294,6 +294,10 @@ function SetRuleCard({ settings }: { settings: Settings }) {
     setBusy(false);
   }
 
+  function openPrint() {
+    window.open("/print/turniermodus?auto=1", "_blank", "noopener,noreferrer");
+  }
+
   return (
     <div className="border-2 border-outline-variant bg-surface-container p-5">
       <div className="flex items-baseline justify-between gap-3">
@@ -363,6 +367,18 @@ function SetRuleCard({ settings }: { settings: Settings }) {
             </button>
           </div>
         </div>
+      </div>
+
+      <div className="mt-4 flex items-center justify-between gap-3 border-t-2 border-outline-variant pt-4">
+        <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-on-surface-variant">
+          {t("printTurniermodusHint")}
+        </p>
+        <button
+          onClick={openPrint}
+          className="label-caps inline-flex items-center gap-2 border-2 border-tertiary px-3 py-1.5 text-tertiary transition-colors hover:bg-tertiary hover:text-deep-void"
+        >
+          ⇩ {t("printTurniermodus")}
+        </button>
       </div>
     </div>
   );

@@ -224,6 +224,9 @@ const STRINGS = {
     setRuleLeadLabel: "2-Spiele-Vorsprung",
     setRuleSummaryLead: "First to {target}, 2-Vorsprung",
     setRuleSummaryNoLead: "First to {target}, ohne Vorsprung",
+    printTurniermodus: "Turniermodus als PDF",
+    printTurniermodusHint:
+      "Druckansicht öffnet im neuen Tab — cmd+P → als PDF speichern (Hintergrundgrafiken aktivieren).",
     // generic
     loadingShort: "Lade…",
   },
@@ -431,6 +434,9 @@ const STRINGS = {
     setRuleLeadLabel: "Two-game lead",
     setRuleSummaryLead: "First to {target}, 2-game lead",
     setRuleSummaryNoLead: "First to {target}, no lead",
+    printTurniermodus: "Tournament mode as PDF",
+    printTurniermodusHint:
+      "Print view opens in new tab — cmd+P → save as PDF (enable background graphics).",
     loadingShort: "Loading…",
   },
 } as const;
