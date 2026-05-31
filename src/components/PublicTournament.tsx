@@ -182,7 +182,7 @@ function BracketBoard({ teams, matches }: { teams: Team[]; matches: Match[] }) {
       <div className="overflow-x-auto">
         {/* Mobile: stacked vertical view */}
         <div className="space-y-4 p-5 sm:hidden">
-          <BracketColumn label="Halbfinale">
+          <BracketColumn label={t("bracketSemifinals")}>
             {sf1 && <MatchCard teams={teams} match={sf1} label="SF 1" />}
             {sf2 && <MatchCard teams={teams} match={sf2} label="SF 2" />}
           </BracketColumn>
@@ -208,14 +208,14 @@ function BracketBoard({ teams, matches }: { teams: Team[]; matches: Match[] }) {
             {/* Column 1: Semifinals */}
             <div className="flex flex-col gap-12 lg:gap-20">
               {sf1 ? (
-                <MatchCard teams={teams} match={sf1} label="Halbfinale 1" />
+                <MatchCard teams={teams} match={sf1} label={t("bracketSF", { n: 1 })} />
               ) : (
-                <PlaceholderCard label="Halbfinale 1" />
+                <PlaceholderCard label={t("bracketSF", { n: 1 })} />
               )}
               {sf2 ? (
-                <MatchCard teams={teams} match={sf2} label="Halbfinale 2" />
+                <MatchCard teams={teams} match={sf2} label={t("bracketSF", { n: 2 })} />
               ) : (
-                <PlaceholderCard label="Halbfinale 2" />
+                <PlaceholderCard label={t("bracketSF", { n: 2 })} />
               )}
             </div>
 

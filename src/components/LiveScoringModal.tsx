@@ -80,9 +80,9 @@ export default function LiveScoringModal({
     match.phase === "mexicano"
       ? `Mexicano R${match.round}${match.wave ? ` · W${match.wave}` : ""}`
       : match.bracket_pos === "sf1"
-        ? "Halbfinale 1"
+        ? t("bracketSF", { n: 1 })
         : match.bracket_pos === "sf2"
-          ? "Halbfinale 2"
+          ? t("bracketSF", { n: 2 })
           : match.bracket_pos === "final"
             ? t("bracketFinal")
             : t("bracketThird");

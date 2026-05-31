@@ -96,6 +96,7 @@ function DemoBanner({ count }: { count: number }) {
 /* ------------------------------ TOP NAV ------------------------------ */
 
 function TopNav() {
+  const t = useT();
   return (
     <header className="fixed top-0 z-40 w-full border-b-2 border-outline-variant bg-background/95 backdrop-blur">
       <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-3 px-4 py-3 sm:px-8 md:px-12 md:py-4">
@@ -106,14 +107,14 @@ function TopNav() {
             className="h-8 w-8 shrink-0 sm:h-10 sm:w-10 md:h-12 md:w-12"
           />
           <span className="truncate font-display text-lg uppercase tracking-tight text-primary sm:text-2xl md:text-3xl lg:text-display-md">
-            Padel Cup 2026
+            {t("siteTitle")}
           </span>
         </a>
         <div className="flex shrink-0 items-center gap-2 sm:gap-4 md:gap-6">
           <nav className="hidden gap-5 lg:flex lg:gap-8">
-            <NavLink href="#register">Register</NavLink>
-            <NavLink href="#teams">Teams</NavLink>
-            <NavLink href="#venue">Venue</NavLink>
+            <NavLink href="#register">{t("navRegister")}</NavLink>
+            <NavLink href="#teams">{t("navTeams")}</NavLink>
+            <NavLink href="#venue">{t("navVenue")}</NavLink>
           </nav>
           <LanguageToggle />
           <SisterCupLink />
@@ -121,7 +122,7 @@ function TopNav() {
             href="#register"
             className="hidden whitespace-nowrap border-2 border-stadium-white bg-primary px-3 py-1.5 font-display text-xs uppercase tracking-wider text-on-primary-container shadow-hard-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 md:inline-flex md:px-4 md:py-2 md:text-sm"
           >
-            Join Now
+            {t("joinNow")}
           </a>
         </div>
       </div>

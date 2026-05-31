@@ -211,7 +211,7 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
 
   async function startFinals() {
     if (!semisComplete(matches)) {
-      setError("Halbfinale noch nicht beendet.");
+      setError(t("errorSemisIncomplete"));
       return;
     }
     // Idempotency guard.
@@ -607,12 +607,12 @@ function groupMatches(matches: Match[]) {
       m.phase === "mexicano"
         ? `Mexicano R${m.round}`
         : m.bracket_pos === "sf1"
-          ? "Halbfinale 1"
+          ? t("bracketSF", { n: 1 })
           : m.bracket_pos === "sf2"
-            ? "Halbfinale 2"
+            ? t("bracketSF", { n: 2 })
             : m.bracket_pos === "final"
-              ? "Finale"
-              : "3. Platz";
+              ? t("bracketFinal")
+              : t("bracketThird");
     let g = groups.find((x) => x.key === key);
     if (!g) {
       g = { key, label, items: [] };
