@@ -158,6 +158,7 @@ function StandingsBoard({
 /* ---------------------------------------------------------- Bracket */
 
 function BracketBoard({ teams, matches }: { teams: Team[]; matches: Match[] }) {
+  const t = useT();
   const sf1 = matches.find(
     (m) => m.phase === "knockout" && m.bracket_pos === "sf1",
   );

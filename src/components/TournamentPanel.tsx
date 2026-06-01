@@ -562,7 +562,7 @@ function MatchesByRound({
   onOpenScoring: (m: Match) => void;
 }) {
   const t = useT();
-  const grouped = useMemo(() => groupMatches(matches), [matches]);
+  const grouped = useMemo(() => groupMatches(matches, t), [matches, t]);
   if (matches.length === 0) {
     return (
       <div className="border-2 border-dashed border-outline-variant p-4 label-caps text-on-surface-variant">
@@ -592,7 +592,7 @@ function MatchesByRound({
   );
 }
 
-function groupMatches(matches: Match[]) {
+function groupMatches(matches: Match[], t: ReturnType<typeof useT>) {
   const sorted = [...matches].sort((a, b) => {
     if (a.phase !== b.phase) return a.phase === "mexicano" ? -1 : 1;
     if (a.round !== b.round) return a.round - b.round;
