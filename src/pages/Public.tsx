@@ -371,6 +371,19 @@ function RegistrationSection({
   activeCount: number;
 }) {
   const t = useT();
+  const { lang } = useLang();
+  const TOTAL_COST = 320;
+  const playerCount = activeCount * 2;
+  const livePerPlayer = playerCount > 0 ? TOTAL_COST / playerCount : null;
+  const isDiscounted = livePerPlayer !== null && livePerPlayer < 20;
+  const liveAmountLabel =
+    livePerPlayer !== null
+      ? new Intl.NumberFormat(lang === "de" ? "de-DE" : "en-US", {
+          style: "currency",
+          currency: "EUR",
+          maximumFractionDigits: 2,
+        }).format(livePerPlayer)
+      : null;
   return (
     <section
       id="register"
@@ -380,6 +393,26 @@ function RegistrationSection({
         eyebrow={t("registerEyebrow")}
         title={t("registerHeading")}
       />
+      <Reveal className="mb-6 sm:mb-8">
+        <div className="flex flex-col gap-3 border-2 border-outline-variant bg-surface-container p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-6">
+          <div className="flex shrink-0 flex-col gap-1">
+            <span className="label-caps text-primary">{t("costEyebrow")}</span>
+            <span className="font-display text-headline-sm uppercase text-stadium-white sm:text-headline-md">
+              {isDiscounted && liveAmountLabel
+                ? t("costAmountLive", { amount: liveAmountLabel })
+                : t("costAmount")}
+            </span>
+            {isDiscounted && (
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-secondary">
+                {t("costAmountSubLive", { count: playerCount })}
+              </span>
+            )}
+          </div>
+          <p className="font-body text-body-sm text-on-surface-variant sm:text-body-md">
+            {t("costNote")}
+          </p>
+        </div>
+      </Reveal>
       {registrationOpen === null ? (
         <Reveal>
           <div className="panel p-8">

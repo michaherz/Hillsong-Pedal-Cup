@@ -74,6 +74,12 @@ const STRINGS = {
     listCountOne: "{count} Team dabei",
     listCountMany: "{count} Teams dabei",
     listEmptyCard: "Noch keine Teams angemeldet.",
+    // cost note
+    costEyebrow: "Teilnahmegebühr",
+    costAmount: "ca. €20 pro Spieler",
+    costAmountLive: "{amount} pro Spieler",
+    costAmountSubLive: "{count} Spieler dabei",
+    costNote: "Gesamtkosten €320 für beide Plätze, aufgeteilt auf alle Spieler. Wird günstiger, je mehr mitmachen.",
     // closed / loading notices
     closedHeading: "Anmeldung geschlossen",
     closedBody: "{count} Teams sind dabei. Spielplan und Live-Tabelle erscheinen hier am Turniertag.",
@@ -236,6 +242,7 @@ const STRINGS = {
       "Druckansicht öffnet im neuen Tab — cmd+P → als PDF speichern (Hintergrundgrafiken aktivieren).",
     // generic
     loadingShort: "Lade…",
+    opensInNewTab: "öffnet in neuem Tab",
   },
   en: {
     regOpen: "Registration open",
@@ -298,6 +305,11 @@ const STRINGS = {
     listCountOne: "{count} team registered",
     listCountMany: "{count} teams registered",
     listEmptyCard: "No teams registered yet.",
+    costEyebrow: "Participation fee",
+    costAmount: "approx. €20 per player",
+    costAmountLive: "{amount} per player",
+    costAmountSubLive: "{count} players signed up",
+    costNote: "Total cost €320 for both courts, split between all players. The more sign up, the cheaper it gets.",
     closedHeading: "Registration closed",
     closedBody: "{count} teams are in. Schedule and live standings appear here on tournament day.",
     sectionDescription: "About",
@@ -452,6 +464,7 @@ const STRINGS = {
     printTurniermodusHint:
       "Print view opens in new tab — cmd+P → save as PDF (enable background graphics).",
     loadingShort: "Loading…",
+    opensInNewTab: "opens in new tab",
   },
 } as const;
 
