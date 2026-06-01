@@ -112,7 +112,7 @@ function Admin({ onSignOut }: { onSignOut: () => void }) {
   return (
     <div className="min-h-full bg-background">
       <div className="mx-auto max-w-5xl space-y-4 px-5 py-5 sm:px-8 sm:py-8">
-        <header className="flex items-center justify-between border-2 border-outline-variant bg-surface-container px-5 py-4">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-2 border-outline-variant bg-surface-container px-5 py-4">
           <div className="flex items-center gap-3">
             <div className="h-2.5 w-2.5 animate-pulse-glow rounded-full bg-secondary" />
             <p className="font-display text-headline-sm uppercase text-stadium-white">
@@ -122,12 +122,23 @@ function Admin({ onSignOut }: { onSignOut: () => void }) {
               {TOURNAMENT.name}
             </span>
           </div>
-          <button
-            onClick={onSignOut}
-            className="label-caps text-on-surface-variant transition-colors hover:text-primary"
-          >
-            {t("signOut")}
-          </button>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <a
+              href="/poster"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="label-caps inline-flex items-center gap-2 border-2 border-secondary px-3 py-1.5 text-secondary transition-colors hover:bg-secondary hover:text-deep-void"
+              title={t("printPosterSlideHint")}
+            >
+              ▢ {t("printPosterSlide")}
+            </a>
+            <button
+              onClick={onSignOut}
+              className="label-caps text-on-surface-variant transition-colors hover:text-primary"
+            >
+              {t("signOut")}
+            </button>
+          </div>
         </header>
 
         <div className="grid gap-4 lg:grid-cols-3">

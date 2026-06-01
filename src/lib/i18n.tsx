@@ -240,6 +240,12 @@ const STRINGS = {
     printTurniermodus: "Turniermodus als PDF",
     printTurniermodusHint:
       "Druckansicht öffnet im neuen Tab — cmd+P → als PDF speichern (Hintergrundgrafiken aktivieren).",
+    printPosterSlide: "Info-Slide (16:9)",
+    printPosterSlideHint:
+      "Slide mit beiden QR-Codes für Bildschirm/Beamer — Anmelden via Scan.",
+    posterEyebrow: "Hillsong Summer 2026",
+    posterScanLabel: "Scan & anmelden",
+    posterDateLabel: "Spieltag",
     // generic
     loadingShort: "Lade…",
     opensInNewTab: "öffnet in neuem Tab",
@@ -463,6 +469,12 @@ const STRINGS = {
     printTurniermodus: "Tournament mode as PDF",
     printTurniermodusHint:
       "Print view opens in new tab — cmd+P → save as PDF (enable background graphics).",
+    printPosterSlide: "Info slide (16:9)",
+    printPosterSlideHint:
+      "Slide with both QR codes for screen/beamer — register via scan.",
+    posterEyebrow: "Hillsong Summer 2026",
+    posterScanLabel: "Scan & sign up",
+    posterDateLabel: "Match day",
     loadingShort: "Loading…",
     opensInNewTab: "opens in new tab",
   },
