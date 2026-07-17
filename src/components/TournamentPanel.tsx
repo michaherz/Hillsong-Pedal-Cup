@@ -546,7 +546,10 @@ function SwissTournamentPanel({ teams, matches, settings }: Props) {
       score_b: null,
       status: "scheduled" as const,
       played_at: null,
-      best_of: bestOfForSwissKO(s.bracketPos),
+      best_of:
+        (settings.scoring_mode ?? "sets") === "timed"
+          ? (1 as const)
+          : bestOfForSwissKO(s.bracketPos),
       is_demo: matchIsDemo(teams, s.teamA, s.teamB),
     }));
     const { error: insErr } = await supabase.from("matches").insert(inserts);
@@ -591,7 +594,10 @@ function SwissTournamentPanel({ teams, matches, settings }: Props) {
       score_b: null,
       status: "scheduled" as const,
       played_at: null,
-      best_of: bestOfForSwissKO(s.bracketPos),
+      best_of:
+        (settings.scoring_mode ?? "sets") === "timed"
+          ? (1 as const)
+          : bestOfForSwissKO(s.bracketPos),
       is_demo: matchIsDemo(teams, s.teamA, s.teamB),
     }));
     const { error: insErr } = await supabase.from("matches").insert(inserts);
