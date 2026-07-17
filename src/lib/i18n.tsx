@@ -223,6 +223,11 @@ const STRINGS = {
     // runtime config
     configHeading: "Turnier-Konfiguration",
     configHint: "Wirkt sich auf den Spielplan-Generator + Kostenanzeige aus",
+    priceCardHeading: "Teilnahmegebuehr / Preis",
+    priceCardHint: "Wird sofort auf der oeffentlichen Anmeldeseite angezeigt (kein Deploy noetig)",
+    priceCardAmount: "Gesamtkosten (EUR)",
+    priceCardSave: "Preis speichern",
+    priceCardSaved: "Live gespeichert",
     configTotalCost: "Gesamtkosten (EUR)",
     configTotalCourts: "Plaetze",
     configRoundsPerTeam: "Spiele je Team",
@@ -535,6 +540,11 @@ const STRINGS = {
     // runtime config
     configHeading: "Tournament config",
     configHint: "Affects the schedule generator + cost display",
+    priceCardHeading: "Participation fee / price",
+    priceCardHint: "Shown immediately on the public registration page (no deploy needed)",
+    priceCardAmount: "Total cost (EUR)",
+    priceCardSave: "Save price",
+    priceCardSaved: "Saved live",
     configTotalCost: "Total cost (EUR)",
     configTotalCourts: "Courts",
     configRoundsPerTeam: "Games per team",

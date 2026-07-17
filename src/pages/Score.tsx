@@ -160,6 +160,7 @@ function Admin({ onSignOut }: { onSignOut: () => void }) {
             scheduleExists={(matches ?? []).length > 0}
           />
         )}
+        {settings && <PriceCard settings={settings} />}
         {settings && <TournamentConfigCard settings={settings} />}
 
         <section className="border-2 border-outline-variant bg-surface-container">
@@ -850,6 +851,62 @@ function AdminTeamRow({
 }
 
 /* ---------------------------------------------------------- Runtime config */
+
+function PriceCard({ settings }: { settings: Settings }) {
+  const t = useT();
+  const [local, setLocal] = useState(String(settings.total_cost ?? 480));
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    setLocal(String(settings.total_cost ?? 480));
+  }, [settings.total_cost]);
+
+  async function save() {
+    if (busy) return;
+    let n = parseFloat(local);
+    if (Number.isNaN(n) || n < 0) n = settings.total_cost ?? 480;
+    setBusy(true);
+    setSaved(false);
+    await supabase.from("settings").update({ total_cost: n }).eq("id", 1);
+    setLocal(String(n));
+    setBusy(false);
+    setSaved(true);
+  }
+
+  return (
+    <div className="border-2 border-primary bg-surface-container p-5">
+      <p className="label-caps text-primary">{t("priceCardHeading")}</p>
+      <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.12em] text-on-surface-variant">
+        {t("priceCardHint")}
+      </p>
+      <div className="mt-4 flex flex-wrap items-end gap-3">
+        <label className="block">
+          <span className="label-caps mb-1 block text-on-surface-variant">
+            {t("priceCardAmount")}
+          </span>
+          <input
+            type="number"
+            className="input w-40"
+            min={0}
+            step={10}
+            value={local}
+            disabled={busy}
+            onChange={(e) => {
+              setLocal(e.target.value);
+              setSaved(false);
+            }}
+          />
+        </label>
+        <button onClick={save} disabled={busy} className="btn-sm">
+          {busy ? "..." : t("priceCardSave")}
+        </button>
+        {saved && !busy && (
+          <span className="label-caps text-secondary">{t("priceCardSaved")}</span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function TournamentConfigCard({ settings }: { settings: Settings }) {
   const t = useT();
