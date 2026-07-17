@@ -1,50 +1,74 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
-import type { Match, Team } from "../lib/database.types";
+import type { Database, Division, Match, Settings as DbSettings, Team } from "../lib/database.types";
 import { useT } from "../lib/i18n";
 import {
-  autoScoreRound,
+  autoScoreLeague,
+  autoScoreSwiss,
   demoTeamCount,
   hasDemoTeams,
   resetDemo,
   seedDemoTeams,
 } from "../lib/demo-mode";
 import {
-  bestOfForBracket,
+  bestOfForSwissKO,
   buildSchedule,
-  computeStandings,
-  finalsComplete,
-  isRoundComplete,
+  computeDivisionStandings,
+  computeSwissStandings,
+  divisionFinalsComplete,
+  generateLeagueSchedule,
+  hasUnresolvedLeagueMatch,
+  isSwissRoundComplete,
+  leagueComplete,
+  seedDivisionFinals,
   seedKOFinals,
   seedKOSemis,
   seedNextRound,
   seedRound1,
-  semisComplete,
-  TOTAL_MEXICANO_ROUNDS,
+  swissFinalsComplete,
+  swissSemisComplete,
+  type Standing,
 } from "../lib/tournament-engine";
 import LiveScoringModal from "./LiveScoringModal";
+import MatchEditor from "./MatchEditor";
 
-type Settings = {
-  registration_open: boolean;
-  tournament_phase: "registration" | "mexicano" | "knockout" | "finished";
-  current_round: number;
-  total_courts: number;
-  set_target: number;
-  set_two_game_lead: boolean;
-};
+type MatchInsert = Database["public"]["Tables"]["matches"]["Insert"];
 
 type Props = {
   teams: Team[];
   matches: Match[];
-  settings: Settings;
+  settings: DbSettings;
 };
 
+const DIVISIONS: Division[] = ["ober", "unter"];
+
+// Box-Liga phases. Legacy phases (mexicano/knockout) are treated as registration.
+type BoxPhase = "registration" | "league" | "final" | "finished";
+
+function normalizePhase(p: DbSettings["tournament_phase"]): BoxPhase {
+  if (p === "league" || p === "final" || p === "finished") return p;
+  return "registration";
+}
+
 export default function TournamentPanel({ teams, matches, settings }: Props) {
+  const mode = settings.tournament_mode ?? "box";
+  if (mode === "swiss") {
+    return <SwissTournamentPanel teams={teams} matches={matches} settings={settings} />;
+  }
+  return <BoxTournamentPanel teams={teams} matches={matches} settings={settings} />;
+}
+
+function BoxTournamentPanel({ teams, matches, settings }: Props) {
   const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [scoringMatchId, setScoringMatchId] = useState<string | null>(null);
-  const courts = settings.total_courts || 2;
+  const [editorOpen, setEditorOpen] = useState(false);
+  const courts = settings.total_courts || 3;
+  const roundsPerTeam = settings.rounds_per_team || 4;
+  const minGap = settings.min_rest_slots ?? 2;
+
   const setRule = useMemo(
     () => ({
       target: settings.set_target ?? 6,
@@ -52,16 +76,18 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
     }),
     [settings.set_target, settings.set_two_game_lead],
   );
-  const standings = useMemo(
-    () => computeStandings(teams, matches),
+
+  const standingsByDiv = useMemo(
+    () => ({
+      ober: computeDivisionStandings(teams, matches, "ober"),
+      unter: computeDivisionStandings(teams, matches, "unter"),
+    }),
     [teams, matches],
   );
 
-  const phase = settings.tournament_phase;
-  const round = settings.current_round;
+  const phase = normalizePhase(settings.tournament_phase);
   const activeTeamCount = teams.filter((t) => t.status === "active").length;
 
-  // Keep the scoring modal in sync with realtime updates.
   const scoringMatch = useMemo(
     () =>
       scoringMatchId
@@ -70,7 +96,8 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
     [scoringMatchId, matches],
   );
 
-  async function startMexicano() {
+  /* ---------------------------------------------------------- Generate league */
+  async function generateSchedule() {
     if (settings.registration_open) {
       setError(t("needRegClosed"));
       return;
@@ -79,24 +106,40 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
       setError(t("needTeamsMessage"));
       return;
     }
+    // Existence check — do not double-generate.
+    if (matches.some((m) => m.phase === "league")) {
+      setError(t("leagueExistsWarn"));
+      return;
+    }
     setBusy(true);
     setError(null);
-    const pairings = seedRound1(teams);
-    const schedule = buildSchedule(pairings, 1, courts);
-    const inserts = schedule.map((s) => ({
-      round: s.round,
-      wave: s.wave,
-      court: s.court,
-      team_a_id: s.teamA,
-      team_b_id: s.teamB,
-      phase: "mexicano" as const,
-      bracket_pos: null,
-      score_a: null,
-      score_b: null,
-      status: "scheduled" as const,
-      played_at: null,
-      is_demo: matchIsDemo(teams, s.teamA, s.teamB),
-    }));
+    const activeTeams = teams.filter((tt) => tt.status === "active");
+    const schedule = generateLeagueSchedule(activeTeams, {
+      courts,
+      roundsPerTeam,
+      minGap,
+    });
+    const inserts: MatchInsert[] = [];
+    schedule.slots.forEach((slot, slotIdx) => {
+      slot.forEach((m, courtIdx) => {
+        inserts.push({
+          round: 1,
+          wave: slotIdx + 1,
+          court: courtIdx + 1,
+          team_a_id: m.a,
+          team_b_id: m.b,
+          phase: "league" as const,
+          division: m.division,
+          is_fun: m.isFun,
+          bracket_pos: null,
+          score_a: null,
+          score_b: null,
+          status: "scheduled" as const,
+          played_at: null,
+          is_demo: matchIsDemo(teams, m.a, m.b),
+        });
+      });
+    });
     const { error: insErr } = await supabase.from("matches").insert(inserts);
     if (insErr) {
       setError(insErr.message);
@@ -105,95 +148,53 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
     }
     await supabase
       .from("settings")
-      .update({ tournament_phase: "mexicano", current_round: 1 })
+      .update({ tournament_phase: "league", current_round: 1 })
       .eq("id", 1);
     setBusy(false);
   }
 
-  async function nextRound() {
-    if (round >= TOTAL_MEXICANO_ROUNDS) {
-      setError("Mexicano-Phase ist bereits vorbei.");
+  /* ---------------------------------------------------------- Seed finals */
+  async function seedFinals() {
+    if (!leagueComplete(matches)) {
+      setError(t("leagueIncomplete"));
       return;
     }
-    if (!isRoundComplete(matches, round)) {
-      setError("Runde noch nicht beendet.");
-      return;
-    }
-    // Idempotency guard: skip if next round already inserted (race protection).
-    if (matches.some((m) => m.phase === "mexicano" && m.round === round + 1)) {
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    const pairings = seedNextRound(standings);
-    const schedule = buildSchedule(pairings, round + 1, courts);
-    const inserts = schedule.map((s) => ({
-      round: s.round,
-      wave: s.wave,
-      court: s.court,
-      team_a_id: s.teamA,
-      team_b_id: s.teamB,
-      phase: "mexicano" as const,
-      bracket_pos: null,
-      score_a: null,
-      score_b: null,
-      status: "scheduled" as const,
-      played_at: null,
-      is_demo: matchIsDemo(teams, s.teamA, s.teamB),
-    }));
-    const { error: insErr } = await supabase.from("matches").insert(inserts);
-    if (insErr) {
-      // 23505 = unique violation → another path already inserted this round. No-op.
-      if (insErr.code !== "23505") {
-        setError(insErr.message);
-        setBusy(false);
-        return;
-      }
-    }
-    await supabase
-      .from("settings")
-      .update({ current_round: round + 1 })
-      .eq("id", 1);
-    setBusy(false);
-  }
-
-  async function startKO() {
-    if (!isRoundComplete(matches, round)) {
-      setError("Letzte Runde noch nicht beendet.");
-      return;
-    }
-    if (standings.length < 4) {
-      setError(t("needTeamsMessage"));
+    if (hasUnresolvedLeagueMatch(matches)) {
+      setError(t("unresolvedWithdrawal"));
       return;
     }
     // Idempotency guard.
-    if (
-      matches.some(
-        (m) =>
-          m.phase === "knockout" &&
-          (m.bracket_pos === "sf1" || m.bracket_pos === "sf2"),
-      )
-    ) {
-      return;
-    }
+    if (matches.some((m) => m.phase === "final")) return;
     setBusy(true);
     setError(null);
-    const semis = seedKOSemis(standings);
-    const inserts = semis.map((s) => ({
-      round: 1,
-      wave: 1,
-      court: s.court,
-      team_a_id: s.teamA,
-      team_b_id: s.teamB,
-      phase: "knockout" as const,
-      bracket_pos: s.bracketPos,
-      score_a: null,
-      score_b: null,
-      status: "scheduled" as const,
-      played_at: null,
-      best_of: bestOfForBracket("knockout", s.bracketPos),
-      is_demo: matchIsDemo(teams, s.teamA, s.teamB),
-    }));
+    const inserts: MatchInsert[] = [];
+    for (const div of DIVISIONS) {
+      const entries = seedDivisionFinals(div, standingsByDiv[div]);
+      for (const e of entries) {
+        inserts.push({
+          round: 1,
+          wave: 1,
+          court: e.court,
+          team_a_id: e.teamA,
+          team_b_id: e.teamB,
+          phase: "final" as const,
+          division: e.division,
+          is_fun: false,
+          bracket_pos: e.bracketPos,
+          score_a: null,
+          score_b: null,
+          status: "scheduled" as const,
+          played_at: null,
+          best_of: 1 as const, // single set to protect the time window
+          is_demo: matchIsDemo(teams, e.teamA, e.teamB),
+        });
+      }
+    }
+    if (inserts.length === 0) {
+      setError(t("noFinalsToSeed"));
+      setBusy(false);
+      return;
+    }
     const { error: insErr } = await supabase.from("matches").insert(inserts);
     if (insErr) {
       if (insErr.code !== "23505") {
@@ -204,62 +205,14 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
     }
     await supabase
       .from("settings")
-      .update({ tournament_phase: "knockout", current_round: 1 })
-      .eq("id", 1);
-    setBusy(false);
-  }
-
-  async function startFinals() {
-    if (!semisComplete(matches)) {
-      setError(t("errorSemisIncomplete"));
-      return;
-    }
-    // Idempotency guard.
-    if (
-      matches.some(
-        (m) =>
-          m.phase === "knockout" &&
-          (m.bracket_pos === "final" || m.bracket_pos === "third"),
-      )
-    ) {
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    const finals = seedKOFinals(matches);
-    const inserts = finals.map((s) => ({
-      round: 2,
-      wave: 1,
-      court: s.court,
-      team_a_id: s.teamA,
-      team_b_id: s.teamB,
-      phase: "knockout" as const,
-      bracket_pos: s.bracketPos,
-      score_a: null,
-      score_b: null,
-      status: "scheduled" as const,
-      played_at: null,
-      best_of: bestOfForBracket("knockout", s.bracketPos),
-      is_demo: matchIsDemo(teams, s.teamA, s.teamB),
-    }));
-    const { error: insErr } = await supabase.from("matches").insert(inserts);
-    if (insErr) {
-      if (insErr.code !== "23505") {
-        setError(insErr.message);
-        setBusy(false);
-        return;
-      }
-    }
-    await supabase
-      .from("settings")
-      .update({ current_round: 2 })
+      .update({ tournament_phase: "final" })
       .eq("id", 1);
     setBusy(false);
   }
 
   async function finishTournament() {
-    if (!finalsComplete(matches)) {
-      setError("Finale + 3. Platz noch nicht beendet.");
+    if (!divisionFinalsComplete(matches)) {
+      setError(t("finalsIncomplete"));
       return;
     }
     setBusy(true);
@@ -271,57 +224,428 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
   }
 
   /* ---------------------------------------------------------- Auto-advance */
-  // Ref-based lock so we don't double-fire while a transition is in flight.
   const advancingRef = useRef(false);
 
   useEffect(() => {
     if (advancingRef.current || busy) return;
 
-    // Decide synchronously what (if anything) to do — pure read of current state.
+    type Action = "seedFinals" | "finishTournament";
+    let action: Action | null = null;
+
+    if (phase === "league") {
+      if (leagueComplete(matches) && !matches.some((m) => m.phase === "final")) {
+        if (hasUnresolvedLeagueMatch(matches)) {
+          // Surface a clear admin message instead of advancing.
+          setNotice(t("unresolvedWithdrawal"));
+          return;
+        }
+        action = "seedFinals";
+      }
+    } else if (phase === "final") {
+      if (divisionFinalsComplete(matches)) action = "finishTournament";
+    }
+
+    if (!action) return;
+
+    advancingRef.current = true;
+    (async () => {
+      try {
+        if (action === "seedFinals") await seedFinals();
+        else if (action === "finishTournament") await finishTournament();
+      } finally {
+        advancingRef.current = false;
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matches, phase]);
+
+  const phaseLabel =
+    phase === "registration"
+      ? t("phaseRegistration")
+      : phase === "league"
+        ? t("phaseLeague")
+        : phase === "final"
+          ? t("phaseFinal")
+          : t("phaseFinished");
+
+  return (
+    <section className="border-2 border-outline-variant bg-surface-container p-5">
+      <FormatPreview phase={phase} />
+
+      <DemoSection
+        teams={teams}
+        matches={matches}
+        phase={phase}
+        setRule={setRule}
+      />
+
+      <header className="mb-6 mt-6 flex items-center justify-between">
+        <div>
+          <p className="label-caps text-primary">{t("tournamentSection")}</p>
+          <h2 className="mt-1 font-display text-headline-md uppercase text-stadium-white">
+            {phaseLabel}
+          </h2>
+        </div>
+      </header>
+
+      <div className="flex flex-wrap gap-3">
+        {phase === "registration" && (
+          <button
+            onClick={generateSchedule}
+            disabled={busy || activeTeamCount < 4 || settings.registration_open}
+            className="btn-sm"
+          >
+            {t("actionGenerateSchedule")}
+          </button>
+        )}
+
+        {phase === "league" && (
+          <button
+            onClick={seedFinals}
+            disabled={busy || !leagueComplete(matches)}
+            className="btn-sm"
+          >
+            {t("actionSeedFinals")}
+          </button>
+        )}
+
+        {phase === "final" && (
+          <button
+            onClick={finishTournament}
+            disabled={busy || !divisionFinalsComplete(matches)}
+            className="btn-sm"
+          >
+            {t("actionTournamentDone")}
+          </button>
+        )}
+
+        {phase !== "registration" && matches.length > 0 && (
+          <button
+            onClick={() => setEditorOpen(true)}
+            className="label-caps border-2 border-outline-variant px-3 py-1.5 text-on-surface transition-colors hover:border-primary hover:text-primary"
+          >
+            {t("matchEditorOpen")}
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <p className="mt-4 border-2 border-error bg-error-container/40 px-3 py-2 text-sm text-error">
+          {error}
+        </p>
+      )}
+      {notice && !error && (
+        <p className="mt-4 border-2 border-tertiary bg-tertiary/10 px-3 py-2 text-sm text-tertiary">
+          {notice}
+        </p>
+      )}
+
+      {phase !== "registration" && (
+        <>
+          <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.12em] text-on-surface-variant">
+            {t("scorerHint")}
+          </p>
+          <div className="mt-4 grid gap-8 lg:grid-cols-2">
+            <MatchesByGroup
+              teams={teams}
+              matches={matches}
+              onOpenScoring={(m) => setScoringMatchId(m.id)}
+            />
+            <div className="space-y-8">
+              {DIVISIONS.map((div) => (
+                <StandingsAdmin
+                  key={div}
+                  division={div}
+                  teams={teams}
+                  standings={standingsByDiv[div]}
+                />
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {scoringMatch && (
+        <LiveScoringModal
+          match={scoringMatch}
+          teams={teams}
+          setRule={setRule}
+          onClose={() => setScoringMatchId(null)}
+        />
+      )}
+
+      {editorOpen && (
+        <MatchEditor
+          teams={teams}
+          matches={matches}
+          courts={courts}
+          onClose={() => setEditorOpen(false)}
+        />
+      )}
+    </section>
+  );
+}
+
+/* ============================================================ Swiss panel */
+
+// Swiss phases mapped from settings.tournament_phase. Box phases (league/final)
+// are treated as registration here (should not occur when mode === 'swiss').
+type SwissPhase = "registration" | "mexicano" | "knockout" | "finished";
+
+function normalizeSwissPhase(p: DbSettings["tournament_phase"]): SwissPhase {
+  if (p === "mexicano" || p === "knockout" || p === "finished") return p;
+  return "registration";
+}
+
+function SwissTournamentPanel({ teams, matches, settings }: Props) {
+  const t = useT();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [scoringMatchId, setScoringMatchId] = useState<string | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const courts = settings.total_courts || 3;
+  const totalRounds = Math.max(settings.rounds_per_team || 3, 1);
+
+  const setRule = useMemo(
+    () => ({
+      target: settings.set_target ?? 6,
+      twoLead: settings.set_two_game_lead ?? true,
+    }),
+    [settings.set_target, settings.set_two_game_lead],
+  );
+
+  const standings = useMemo(
+    () => computeSwissStandings(teams, matches),
+    [teams, matches],
+  );
+
+  const phase = normalizeSwissPhase(settings.tournament_phase);
+  const round = settings.current_round;
+  const activeTeamCount = teams.filter((x) => x.status === "active").length;
+
+  const scoringMatch = useMemo(
+    () =>
+      scoringMatchId ? matches.find((m) => m.id === scoringMatchId) ?? null : null,
+    [scoringMatchId, matches],
+  );
+
+  /* -------------------------------------------------- Start (round 1) */
+  async function startSwiss() {
+    if (settings.registration_open) {
+      setError(t("needRegClosed"));
+      return;
+    }
+    if (activeTeamCount < 4) {
+      setError(t("needTeamsMessage"));
+      return;
+    }
+    if (matches.some((m) => m.phase === "mexicano")) {
+      setError(t("leagueExistsWarn"));
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const pairings = seedRound1(teams);
+    const schedule = buildSchedule(pairings, 1, courts);
+    const inserts: MatchInsert[] = schedule.map((s) => ({
+      round: s.round,
+      wave: s.wave,
+      court: s.court,
+      team_a_id: s.teamA,
+      team_b_id: s.teamB,
+      phase: "mexicano" as const,
+      bracket_pos: null,
+      score_a: null,
+      score_b: null,
+      status: "scheduled" as const,
+      played_at: null,
+      is_demo: matchIsDemo(teams, s.teamA, s.teamB),
+    }));
+    const { error: insErr } = await supabase.from("matches").insert(inserts);
+    if (insErr && insErr.code !== "23505") {
+      setError(insErr.message);
+      setBusy(false);
+      return;
+    }
+    await supabase
+      .from("settings")
+      .update({ tournament_phase: "mexicano", current_round: 1 })
+      .eq("id", 1);
+    setBusy(false);
+  }
+
+  /* -------------------------------------------------- Next round */
+  async function nextRound() {
+    if (round >= totalRounds) {
+      setError(t("swissPhaseOver"));
+      return;
+    }
+    if (!isSwissRoundComplete(matches, round)) {
+      setError(t("swissRoundIncomplete"));
+      return;
+    }
+    if (matches.some((m) => m.phase === "mexicano" && m.round === round + 1)) return;
+    setBusy(true);
+    setError(null);
+    const pairings = seedNextRound(standings);
+    const schedule = buildSchedule(pairings, round + 1, courts);
+    const inserts: MatchInsert[] = schedule.map((s) => ({
+      round: s.round,
+      wave: s.wave,
+      court: s.court,
+      team_a_id: s.teamA,
+      team_b_id: s.teamB,
+      phase: "mexicano" as const,
+      bracket_pos: null,
+      score_a: null,
+      score_b: null,
+      status: "scheduled" as const,
+      played_at: null,
+      is_demo: matchIsDemo(teams, s.teamA, s.teamB),
+    }));
+    const { error: insErr } = await supabase.from("matches").insert(inserts);
+    if (insErr && insErr.code !== "23505") {
+      setError(insErr.message);
+      setBusy(false);
+      return;
+    }
+    await supabase.from("settings").update({ current_round: round + 1 }).eq("id", 1);
+    setBusy(false);
+  }
+
+  /* -------------------------------------------------- Start KO (semis) */
+  async function startKO() {
+    if (!isSwissRoundComplete(matches, round)) {
+      setError(t("swissRoundIncomplete"));
+      return;
+    }
+    if (standings.length < 4) {
+      setError(t("needTeamsMessage"));
+      return;
+    }
+    if (matches.some((m) => m.phase === "knockout")) return;
+    setBusy(true);
+    setError(null);
+    const semis = seedKOSemis(standings);
+    if (semis.length === 0) {
+      setError(t("needTeamsMessage"));
+      setBusy(false);
+      return;
+    }
+    const inserts: MatchInsert[] = semis.map((s) => ({
+      round: 1,
+      wave: 1,
+      court: s.court,
+      team_a_id: s.teamA,
+      team_b_id: s.teamB,
+      phase: "knockout" as const,
+      bracket_pos: s.bracketPos,
+      score_a: null,
+      score_b: null,
+      status: "scheduled" as const,
+      played_at: null,
+      best_of: bestOfForSwissKO(s.bracketPos),
+      is_demo: matchIsDemo(teams, s.teamA, s.teamB),
+    }));
+    const { error: insErr } = await supabase.from("matches").insert(inserts);
+    if (insErr && insErr.code !== "23505") {
+      setError(insErr.message);
+      setBusy(false);
+      return;
+    }
+    await supabase
+      .from("settings")
+      .update({ tournament_phase: "knockout", current_round: 1 })
+      .eq("id", 1);
+    setBusy(false);
+  }
+
+  /* -------------------------------------------------- Start finals */
+  async function startFinals() {
+    if (!swissSemisComplete(matches)) {
+      setError(t("errorSemisIncomplete"));
+      return;
+    }
+    if (matches.some((m) => m.phase === "knockout" && (m.bracket_pos === "final" || m.bracket_pos === "third"))) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const finals = seedKOFinals(matches);
+    if (finals.length === 0) {
+      setError(t("errorSemisIncomplete"));
+      setBusy(false);
+      return;
+    }
+    const inserts: MatchInsert[] = finals.map((s) => ({
+      round: 2,
+      wave: 1,
+      court: s.court,
+      team_a_id: s.teamA,
+      team_b_id: s.teamB,
+      phase: "knockout" as const,
+      bracket_pos: s.bracketPos,
+      score_a: null,
+      score_b: null,
+      status: "scheduled" as const,
+      played_at: null,
+      best_of: bestOfForSwissKO(s.bracketPos),
+      is_demo: matchIsDemo(teams, s.teamA, s.teamB),
+    }));
+    const { error: insErr } = await supabase.from("matches").insert(inserts);
+    if (insErr && insErr.code !== "23505") {
+      setError(insErr.message);
+      setBusy(false);
+      return;
+    }
+    await supabase.from("settings").update({ current_round: 2 }).eq("id", 1);
+    setBusy(false);
+  }
+
+  async function finishTournament() {
+    if (!swissFinalsComplete(matches)) {
+      setError(t("finalsIncomplete"));
+      return;
+    }
+    setBusy(true);
+    await supabase
+      .from("settings")
+      .update({ tournament_phase: "finished" })
+      .eq("id", 1);
+    setBusy(false);
+  }
+
+  /* -------------------------------------------------- Auto-advance */
+  const advancingRef = useRef(false);
+
+  useEffect(() => {
+    if (advancingRef.current || busy) return;
+
     type Action = "nextRound" | "startKO" | "startFinals" | "finishTournament";
     let action: Action | null = null;
 
     if (phase === "mexicano") {
-      if (
-        round > 0 &&
-        round < TOTAL_MEXICANO_ROUNDS &&
-        isRoundComplete(matches, round) &&
-        !matches.some(
-          (m) => m.phase === "mexicano" && m.round === round + 1,
-        )
-      ) {
-        action = "nextRound";
-      } else if (
-        round >= TOTAL_MEXICANO_ROUNDS &&
-        isRoundComplete(matches, round) &&
-        standings.length >= 4 &&
-        !matches.some(
-          (m) =>
-            m.phase === "knockout" &&
-            (m.bracket_pos === "sf1" || m.bracket_pos === "sf2"),
-        )
-      ) {
-        action = "startKO";
+      if (round > 0 && round < totalRounds && isSwissRoundComplete(matches, round)) {
+        if (!matches.some((m) => m.phase === "mexicano" && m.round === round + 1)) {
+          action = "nextRound";
+        }
+      } else if (round >= totalRounds && isSwissRoundComplete(matches, round)) {
+        if (!matches.some((m) => m.phase === "knockout") && standings.length >= 4) {
+          action = "startKO";
+        }
       }
     } else if (phase === "knockout") {
-      if (round === 1 && semisComplete(matches)) {
-        const finalsExist = matches.some(
-          (m) =>
-            m.phase === "knockout" &&
-            (m.bracket_pos === "final" || m.bracket_pos === "third"),
-        );
-        if (!finalsExist) action = "startFinals";
-      } else if (round === 2 && finalsComplete(matches)) {
+      if (round === 1 && swissSemisComplete(matches)) {
+        if (!matches.some((m) => m.phase === "knockout" && (m.bracket_pos === "final" || m.bracket_pos === "third"))) {
+          action = "startFinals";
+        }
+      } else if (round === 2 && swissFinalsComplete(matches)) {
         action = "finishTournament";
       }
     }
 
     if (!action) return;
-
-    // SYNCHRONOUS lock — set BEFORE any async call so a re-fire of this effect
-    // (from realtime updates between now and the action returning) sees the lock.
     advancingRef.current = true;
-
     (async () => {
       try {
         if (action === "nextRound") await nextRound();
@@ -339,21 +663,23 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
     phase === "registration"
       ? t("phaseRegistration")
       : phase === "mexicano"
-        ? t("phaseMexicano", { round })
+        ? t("phaseSwiss", { round, total: totalRounds })
         : phase === "knockout"
           ? t("phaseKnockout")
           : t("phaseFinished");
 
+  const roundDone = isSwissRoundComplete(matches, round);
+
   return (
     <section className="border-2 border-outline-variant bg-surface-container p-5">
-      <FormatPreview phase={phase} round={round} />
+      <SwissFormatPreview phase={phase} round={round} totalRounds={totalRounds} />
 
       <DemoSection
         teams={teams}
         matches={matches}
-        round={round}
-        phase={phase}
+        phase={phase === "mexicano" ? "swiss-group" : "other"}
         setRule={setRule}
+        mode="swiss"
       />
 
       <header className="mb-6 mt-6 flex items-center justify-between">
@@ -368,30 +694,22 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
       <div className="flex flex-wrap gap-3">
         {phase === "registration" && (
           <button
-            onClick={startMexicano}
+            onClick={startSwiss}
             disabled={busy || activeTeamCount < 4 || settings.registration_open}
             className="btn-sm"
           >
-            {t("actionStartMexicano")}
+            {t("actionStartSwiss")}
           </button>
         )}
 
-        {phase === "mexicano" && round < TOTAL_MEXICANO_ROUNDS && (
-          <button
-            onClick={nextRound}
-            disabled={busy || !isRoundComplete(matches, round)}
-            className="btn-sm"
-          >
+        {phase === "mexicano" && round < totalRounds && (
+          <button onClick={nextRound} disabled={busy || !roundDone} className="btn-sm">
             {t("actionNextRound")}
           </button>
         )}
 
-        {phase === "mexicano" && round >= TOTAL_MEXICANO_ROUNDS && (
-          <button
-            onClick={startKO}
-            disabled={busy || !isRoundComplete(matches, round)}
-            className="btn-sm"
-          >
+        {phase === "mexicano" && round >= totalRounds && (
+          <button onClick={startKO} disabled={busy || !roundDone} className="btn-sm">
             {t("actionStartKO")}
           </button>
         )}
@@ -399,7 +717,7 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
         {phase === "knockout" && round === 1 && (
           <button
             onClick={startFinals}
-            disabled={busy || !semisComplete(matches)}
+            disabled={busy || !swissSemisComplete(matches)}
             className="btn-sm"
           >
             {t("actionStartFinals")}
@@ -409,10 +727,19 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
         {phase === "knockout" && round === 2 && (
           <button
             onClick={finishTournament}
-            disabled={busy || !finalsComplete(matches)}
+            disabled={busy || !swissFinalsComplete(matches)}
             className="btn-sm"
           >
             {t("actionTournamentDone")}
+          </button>
+        )}
+
+        {phase !== "registration" && matches.length > 0 && (
+          <button
+            onClick={() => setEditorOpen(true)}
+            className="label-caps border-2 border-outline-variant px-3 py-1.5 text-on-surface transition-colors hover:border-primary hover:text-primary"
+          >
+            {t("matchEditorOpen")}
           </button>
         )}
       </div>
@@ -424,14 +751,19 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
       )}
 
       {phase !== "registration" && (
-        <div className="mt-8 grid gap-8 lg:grid-cols-2">
-          <MatchesByRound
-            teams={teams}
-            matches={matches}
-            onOpenScoring={(m) => setScoringMatchId(m.id)}
-          />
-          <StandingsAdmin teams={teams} standings={standings} />
-        </div>
+        <>
+          <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.12em] text-on-surface-variant">
+            {t("scorerHint")}
+          </p>
+          <div className="mt-4 grid gap-8 lg:grid-cols-2">
+            <SwissMatchesByRound
+              teams={teams}
+              matches={matches}
+              onOpenScoring={(m) => setScoringMatchId(m.id)}
+            />
+            <SwissStandingsAdmin teams={teams} standings={standings} />
+          </div>
+        </>
       )}
 
       {scoringMatch && (
@@ -442,14 +774,237 @@ export default function TournamentPanel({ teams, matches, settings }: Props) {
           onClose={() => setScoringMatchId(null)}
         />
       )}
+
+      {editorOpen && (
+        <MatchEditor
+          teams={teams}
+          matches={matches}
+          courts={courts}
+          onClose={() => setEditorOpen(false)}
+        />
+      )}
     </section>
+  );
+}
+
+/* ------------------------------------------ Swiss display helpers */
+
+function SwissFormatPreview({
+  phase,
+  round,
+  totalRounds,
+}: {
+  phase: SwissPhase;
+  round: number;
+  totalRounds: number;
+}) {
+  const t = useT();
+  const currentStep: "reg" | "group" | "ko" | "done" =
+    phase === "registration"
+      ? "reg"
+      : phase === "mexicano"
+        ? "group"
+        : phase === "knockout"
+          ? "ko"
+          : "done";
+  const steps: Array<{ key: typeof currentStep; label: string }> = [
+    { key: "reg", label: t("stepReg") },
+    { key: "group", label: t("stepSwissGroup") },
+    { key: "ko", label: t("stepKO") },
+    { key: "done", label: t("stepDone") },
+  ];
+  const order = ["reg", "group", "ko", "done"] as const;
+  const currentIdx = order.indexOf(currentStep);
+  return (
+    <div className="border-2 border-primary/40 bg-deep-void p-4 sm:p-5">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="label-caps text-primary">{t("formatHeading")}</p>
+        <p className="hidden font-mono text-[10px] uppercase tracking-[0.12em] text-on-surface-variant sm:block">
+          {t("formatSwissSubtitle", { total: totalRounds })}
+        </p>
+      </div>
+      <ul className="mt-3 space-y-1.5 font-body text-body-sm text-on-surface-variant">
+        <li>· {t("formatSwissRule1")}</li>
+        <li>· {t("formatSwissRule2", { total: totalRounds })}</li>
+        <li>· {t("formatSwissRule3")}</li>
+      </ul>
+      <div className="mt-4 -mx-1 flex items-center gap-1 overflow-x-auto pb-1 sm:mt-5">
+        {steps.map((step, i) => {
+          const idx = order.indexOf(step.key);
+          const isCurrent = step.key === currentStep;
+          const isPast = idx < currentIdx;
+          const label =
+            step.key === "group" && phase === "mexicano"
+              ? `${step.label} ${round}/${totalRounds}`
+              : step.label;
+          return (
+            <div key={step.key} className="flex items-center gap-1">
+              <div
+                className={`shrink-0 border-2 px-2.5 py-1.5 transition-colors ${
+                  isCurrent
+                    ? "border-primary bg-primary text-on-primary-container"
+                    : isPast
+                      ? "border-secondary/60 bg-secondary/10 text-secondary"
+                      : "border-outline-variant text-on-surface-variant"
+                }`}
+              >
+                <span className="font-mono text-[10px] uppercase tracking-[0.12em]">
+                  {label}
+                </span>
+              </div>
+              {i < steps.length - 1 && (
+                <span
+                  aria-hidden
+                  className={`h-0.5 w-3 sm:w-5 ${idx < currentIdx ? "bg-secondary/60" : "bg-outline-variant"}`}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SwissMatchesByRound({
+  teams,
+  matches,
+  onOpenScoring,
+}: {
+  teams: Team[];
+  matches: Match[];
+  onOpenScoring: (m: Match) => void;
+}) {
+  const t = useT();
+  const grouped = useMemo(() => {
+    const relevant = matches.filter(
+      (m) => m.phase === "mexicano" || m.phase === "knockout",
+    );
+    const sorted = [...relevant].sort((a, b) => {
+      if (a.phase !== b.phase) return a.phase === "mexicano" ? -1 : 1;
+      if (a.round !== b.round) return a.round - b.round;
+      if ((a.wave ?? 0) !== (b.wave ?? 0)) return (a.wave ?? 0) - (b.wave ?? 0);
+      return a.court - b.court;
+    });
+    const groups: { key: string; label: string; items: Match[] }[] = [];
+    for (const m of sorted) {
+      let key: string;
+      let label: string;
+      if (m.phase === "knockout") {
+        key = "ko";
+        label = t("bracketSemifinals") + " + " + t("finalsHeading");
+      } else {
+        key = `r-${m.round}`;
+        label = t("swissRoundLabel", { round: m.round });
+      }
+      let g = groups.find((x) => x.key === key);
+      if (!g) {
+        g = { key, label, items: [] };
+        groups.push(g);
+      }
+      g.items.push(m);
+    }
+    return groups;
+  }, [matches, t]);
+
+  if (grouped.length === 0) {
+    return (
+      <div className="border-2 border-dashed border-outline-variant p-4 label-caps text-on-surface-variant">
+        {t("noMatchesYet")}
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-5">
+      <h3 className="label-caps-lg text-primary">{t("matchesHeading")}</h3>
+      {grouped.map(({ key, label, items }) => (
+        <div key={key} className="space-y-2">
+          <p className="label-caps text-on-surface-variant">{label}</p>
+          <ul className="space-y-1.5">
+            {items.map((m) => (
+              <AdminMatchRow
+                key={m.id}
+                match={m}
+                teams={teams}
+                onOpenScoring={onOpenScoring}
+              />
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SwissStandingsAdmin({
+  teams,
+  standings,
+}: {
+  teams: Team[];
+  standings: Standing[];
+}) {
+  const t = useT();
+  return (
+    <div className="space-y-3">
+      <h3 className="label-caps-lg text-primary">{t("standingsHeading")}</h3>
+      {standings.length === 0 ? (
+        <p className="border-2 border-dashed border-outline-variant p-3 label-caps text-on-surface-variant">
+          {t("noStandingsYet")}
+        </p>
+      ) : (
+        <table className="w-full text-body-sm">
+          <thead>
+            <tr className="label-caps text-on-surface-variant">
+              <th className="px-2 py-2 text-left">{t("standingsPos")}</th>
+              <th className="px-2 py-2 text-left">{t("standingsTeam")}</th>
+              <th className="px-2 py-2 text-right">{t("standingsPlayed")}</th>
+              <th className="px-2 py-2 text-right">{t("standingsWL")}</th>
+              <th className="px-2 py-2 text-right">{t("standingsGames")}</th>
+              <th className="px-2 py-2 text-right">{t("standingsPoints")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {standings.map((s) => {
+              const team = teams.find((x) => x.id === s.teamId);
+              const isPodium = s.position <= 4;
+              return (
+                <tr
+                  key={s.teamId}
+                  className={`border-t-2 border-outline-variant ${isPodium ? "bg-primary/5" : ""}`}
+                >
+                  <td className="px-2 py-2 font-mono text-on-surface-variant">
+                    {s.position}
+                  </td>
+                  <td className="px-2 py-2 truncate font-display uppercase text-stadium-white">
+                    {team?.team_name ?? "?"}
+                  </td>
+                  <td className="px-2 py-2 text-right tabular-nums text-on-surface">
+                    {s.played}
+                  </td>
+                  <td className="px-2 py-2 text-right tabular-nums text-on-surface">
+                    {s.wins}-{s.losses}
+                  </td>
+                  <td className="px-2 py-2 text-right tabular-nums text-on-surface">
+                    {s.gamesDiff > 0 ? "+" : ""}
+                    {s.gamesDiff}
+                  </td>
+                  <td className="px-2 py-2 text-right font-display tabular-nums text-primary">
+                    {s.points}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }
 
 function teamLabel(teams: Team[], id: string | null): string {
   if (!id) return "—";
-  const t = teams.find((x) => x.id === id);
-  return t ? t.team_name : "?";
+  const team = teams.find((x) => x.id === id);
+  return team ? team.team_name : "?";
 }
 
 /** A match counts as demo if both involved teams are demo. */
@@ -465,40 +1020,32 @@ function matchIsDemo(
 
 /* ---------------------------------------------------------- Format Preview */
 
-type Step = "reg" | "r1" | "r2" | "r3" | "ko" | "done";
+type Step = "reg" | "league" | "final" | "done";
 
 function FormatPreview({
   phase,
-  round,
 }: {
-  phase: "registration" | "mexicano" | "knockout" | "finished";
-  round: number;
+  phase: "registration" | "league" | "final" | "finished";
 }) {
   const t = useT();
 
   const currentStep: Step =
     phase === "registration"
       ? "reg"
-      : phase === "mexicano"
-        ? round <= 1
-          ? "r1"
-          : round === 2
-            ? "r2"
-            : "r3"
-        : phase === "knockout"
-          ? "ko"
+      : phase === "league"
+        ? "league"
+        : phase === "final"
+          ? "final"
           : "done";
 
   const steps: Array<{ key: Step; label: string }> = [
     { key: "reg", label: t("stepReg") },
-    { key: "r1", label: t("stepR1") },
-    { key: "r2", label: t("stepR2") },
-    { key: "r3", label: t("stepR3") },
-    { key: "ko", label: t("stepKO") },
+    { key: "league", label: t("stepLeague") },
+    { key: "final", label: t("stepFinal") },
     { key: "done", label: t("stepDone") },
   ];
 
-  const order: Step[] = ["reg", "r1", "r2", "r3", "ko", "done"];
+  const order: Step[] = ["reg", "league", "final", "done"];
   const currentIdx = order.indexOf(currentStep);
 
   return (
@@ -552,7 +1099,15 @@ function FormatPreview({
   );
 }
 
-function MatchesByRound({
+/* ---------------------------------------------------------- Matches display */
+
+function divisionLabel(t: ReturnType<typeof useT>, div: Division | null): string {
+  if (div === "ober") return t("divisionOber");
+  if (div === "unter") return t("divisionUnter");
+  return t("divisionNone");
+}
+
+function MatchesByGroup({
   teams,
   matches,
   onOpenScoring,
@@ -594,25 +1149,24 @@ function MatchesByRound({
 
 function groupMatches(matches: Match[], t: ReturnType<typeof useT>) {
   const sorted = [...matches].sort((a, b) => {
-    if (a.phase !== b.phase) return a.phase === "mexicano" ? -1 : 1;
-    if (a.round !== b.round) return a.round - b.round;
+    if (a.phase !== b.phase) return a.phase === "league" ? -1 : 1;
     if ((a.wave ?? 0) !== (b.wave ?? 0)) return (a.wave ?? 0) - (b.wave ?? 0);
     return a.court - b.court;
   });
   const groups: { key: string; label: string; items: Match[] }[] = [];
   for (const m of sorted) {
-    const key =
-      m.phase === "mexicano" ? `mex-${m.round}` : `ko-${m.bracket_pos}`;
-    const label =
-      m.phase === "mexicano"
-        ? `Mexicano R${m.round}`
-        : m.bracket_pos === "sf1"
-          ? t("bracketSF", { n: 1 })
-          : m.bracket_pos === "sf2"
-            ? t("bracketSF", { n: 2 })
-            : m.bracket_pos === "final"
-              ? t("bracketFinal")
-              : t("bracketThird");
+    let key: string;
+    let label: string;
+    if (m.phase === "final") {
+      key = `final-${m.division}`;
+      label = `${divisionLabel(t, m.division)} · ${t("finalsHeading")}`;
+    } else if (m.is_fun) {
+      key = "fun";
+      label = t("funGamesHeading");
+    } else {
+      key = `league-${m.division}`;
+      label = `${divisionLabel(t, m.division)} · ${t("leagueGamesHeading")}`;
+    }
     let g = groups.find((x) => x.key === key);
     if (!g) {
       g = { key, label, items: [] };
@@ -637,8 +1191,9 @@ function AdminMatchRow({
   const teamA = teamLabel(teams, match.team_a_id);
   const teamB = teamLabel(teams, match.team_b_id);
 
-  const compact =
-    match.status === "done"
+  const compact = match.is_walkover
+    ? t("walkoverShort")
+    : match.status === "done"
       ? match.set_history.map((s) => `${s.a}-${s.b}`).join(", ") || "—"
       : match.status === "in_progress"
         ? `${match.sets_a}·${match.sets_b}  |  ${match.current_a}–${match.current_b}`
@@ -660,9 +1215,14 @@ function AdminMatchRow({
         <span className="font-display uppercase text-stadium-white">
           {teamB}
         </span>
-        {match.best_of === 3 && (
+        {match.is_fun && (
+          <span className="ml-2 label-caps border-2 border-secondary/60 px-1.5 py-0 text-[10px] text-secondary">
+            {t("funBadge")}
+          </span>
+        )}
+        {match.is_walkover && (
           <span className="ml-2 label-caps border-2 border-tertiary/60 px-1.5 py-0 text-[10px] text-tertiary">
-            {t("bestOf3Short")}
+            {t("walkoverBadge")}
           </span>
         )}
       </span>
@@ -687,62 +1247,72 @@ function AdminMatchRow({
 }
 
 function StandingsAdmin({
+  division,
   teams,
   standings,
 }: {
+  division: Division;
   teams: Team[];
-  standings: ReturnType<typeof computeStandings>;
+  standings: Standing[];
 }) {
   const t = useT();
   return (
     <div className="space-y-3">
-      <h3 className="label-caps-lg text-primary">{t("standingsHeading")}</h3>
-      <table className="w-full text-body-sm">
-        <thead>
-          <tr className="label-caps text-on-surface-variant">
-            <th className="px-2 py-2 text-left">{t("standingsPos")}</th>
-            <th className="px-2 py-2 text-left">{t("standingsTeam")}</th>
-            <th className="px-2 py-2 text-right">{t("standingsPlayed")}</th>
-            <th className="px-2 py-2 text-right">{t("standingsWL")}</th>
-            <th className="px-2 py-2 text-right">{t("standingsGames")}</th>
-            <th className="px-2 py-2 text-right">{t("standingsPoints")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {standings.map((s) => {
-            const team = teams.find((x) => x.id === s.teamId);
-            const isPodium = s.position <= 4;
-            return (
-              <tr
-                key={s.teamId}
-                className={`border-t-2 border-outline-variant ${
-                  isPodium ? "bg-primary/5" : ""
-                }`}
-              >
-                <td className="px-2 py-2 font-mono text-on-surface-variant">
-                  {s.position}
-                </td>
-                <td className="px-2 py-2 truncate font-display uppercase text-stadium-white">
-                  {team?.team_name ?? "?"}
-                </td>
-                <td className="px-2 py-2 text-right tabular-nums text-on-surface">
-                  {s.played}
-                </td>
-                <td className="px-2 py-2 text-right tabular-nums text-on-surface">
-                  {s.wins}-{s.losses}
-                </td>
-                <td className="px-2 py-2 text-right tabular-nums text-on-surface">
-                  {s.gamesDiff > 0 ? "+" : ""}
-                  {s.gamesDiff}
-                </td>
-                <td className="px-2 py-2 text-right font-display tabular-nums text-primary">
-                  {s.points}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <h3 className="label-caps-lg text-primary">
+        {divisionLabel(t, division)} · {t("standingsHeading")}
+      </h3>
+      {standings.length === 0 ? (
+        <p className="border-2 border-dashed border-outline-variant p-3 label-caps text-on-surface-variant">
+          {t("noStandingsYet")}
+        </p>
+      ) : (
+        <table className="w-full text-body-sm">
+          <thead>
+            <tr className="label-caps text-on-surface-variant">
+              <th className="px-2 py-2 text-left">{t("standingsPos")}</th>
+              <th className="px-2 py-2 text-left">{t("standingsTeam")}</th>
+              <th className="px-2 py-2 text-right">{t("standingsPlayed")}</th>
+              <th className="px-2 py-2 text-right">{t("standingsWL")}</th>
+              <th className="px-2 py-2 text-right">{t("standingsGames")}</th>
+              <th className="px-2 py-2 text-right">{t("standingsPoints")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {standings.map((s) => {
+              const team = teams.find((x) => x.id === s.teamId);
+              const isPodium = s.position <= 2;
+              return (
+                <tr
+                  key={s.teamId}
+                  className={`border-t-2 border-outline-variant ${
+                    isPodium ? "bg-primary/5" : ""
+                  }`}
+                >
+                  <td className="px-2 py-2 font-mono text-on-surface-variant">
+                    {s.position}
+                  </td>
+                  <td className="px-2 py-2 truncate font-display uppercase text-stadium-white">
+                    {team?.team_name ?? "?"}
+                  </td>
+                  <td className="px-2 py-2 text-right tabular-nums text-on-surface">
+                    {s.played}
+                  </td>
+                  <td className="px-2 py-2 text-right tabular-nums text-on-surface">
+                    {s.wins}-{s.losses}
+                  </td>
+                  <td className="px-2 py-2 text-right tabular-nums text-on-surface">
+                    {s.gamesDiff > 0 ? "+" : ""}
+                    {s.gamesDiff}
+                  </td>
+                  <td className="px-2 py-2 text-right font-display tabular-nums text-primary">
+                    {s.points}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
@@ -752,15 +1322,15 @@ function StandingsAdmin({
 function DemoSection({
   teams,
   matches,
-  round,
   phase,
   setRule,
+  mode = "box",
 }: {
   teams: Team[];
   matches: Match[];
-  round: number;
-  phase: "registration" | "mexicano" | "knockout" | "finished";
+  phase: "registration" | "league" | "final" | "finished" | "swiss-group" | "other";
   setRule: { target: number; twoLead: boolean };
+  mode?: "box" | "swiss";
 }) {
   const t = useT();
   const [busy, setBusy] = useState<"seed" | "score" | "reset" | null>(null);
@@ -768,6 +1338,9 @@ function DemoSection({
   const [info, setInfo] = useState<string | null>(null);
   const demoCount = demoTeamCount(teams);
   const hasDemo = hasDemoTeams(teams);
+  // Box: auto-score during 'league'. Swiss: auto-score during the group phase.
+  const canAutoScore =
+    mode === "swiss" ? phase === "swiss-group" : phase === "league";
 
   async function onSeed() {
     if (hasDemo) {
@@ -787,14 +1360,17 @@ function DemoSection({
   }
 
   async function onAutoScore() {
-    if (phase !== "mexicano") {
-      setError(t("demoNeedsMexicano"));
+    if (!canAutoScore) {
+      setError(mode === "swiss" ? t("demoNeedsSwissGroup") : t("demoNeedsLeague"));
       return;
     }
     setBusy("score");
     setError(null);
     setInfo(null);
-    const { count, error: e } = await autoScoreRound(matches, teams, round, setRule);
+    const { count, error: e } =
+      mode === "swiss"
+        ? await autoScoreSwiss(matches, teams, setRule)
+        : await autoScoreLeague(matches, teams, setRule);
     setBusy(null);
     if (e) {
       setError(e);
@@ -843,7 +1419,7 @@ function DemoSection({
         </button>
         <button
           onClick={onAutoScore}
-          disabled={busy !== null || phase !== "mexicano"}
+          disabled={busy !== null || !canAutoScore}
           className="border-2 border-outline-variant px-3 py-1.5 label-caps text-on-surface transition-colors hover:border-tertiary hover:text-tertiary disabled:opacity-40"
         >
           {busy === "score" ? "…" : t("demoAutoScore")}

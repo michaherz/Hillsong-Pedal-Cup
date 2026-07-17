@@ -22,19 +22,26 @@ export default function PrintTurniermodus() {
 
   const target = settings?.set_target ?? 6;
   const twoLead = settings?.set_two_game_lead ?? true;
+  const courts = settings?.total_courts ?? 3;
+  const roundsPerTeam = settings?.rounds_per_team ?? 4;
   const setRuleSummary = `First to ${target}${twoLead ? " · 2-Spiele-Vorsprung" : " · ohne Vorsprung"}`;
 
   // Per-match estimate in minutes — rough heuristic.
   const minutesPerMatch =
     target === 4 ? 14 : target === 5 ? 18 : 22;
 
-  // Total time calculation:
-  // - 3 Mexicano rounds × 3 waves = 9 BO1 waves
-  // - 1 KO Halbfinale wave (BO1)
-  // - 1 KO Finale+3rd wave (BO3 ≈ 2.5 BO1 matches)
-  // - Switching/buffer between waves: ~3 min × 11 waves
-  const playMinutes = 9 * minutesPerMatch + minutesPerMatch + minutesPerMatch * 2.5;
-  const switchMinutes = 11 * 3;
+  // Total time calculation (Box-Liga, rough):
+  // - Each team plays roundsPerTeam counted games; total counted games
+  //   ~ teams*roundsPerTeam/2. With `courts` courts we get roughly
+  //   ceil(games/courts) slots; assume ~10 teams as a planning baseline.
+  const planningTeams = 10;
+  const countedGames = Math.ceil((planningTeams * roundsPerTeam) / 2);
+  const leagueSlots = Math.ceil(countedGames / courts);
+  // + 1 finals wave per division (final + 3rd), single set.
+  const finalWaves = 2;
+  const totalWaves = leagueSlots + finalWaves;
+  const playMinutes = totalWaves * minutesPerMatch;
+  const switchMinutes = totalWaves * 3;
   const totalMinutes = Math.round(playMinutes + switchMinutes);
   const totalH = Math.floor(totalMinutes / 60);
   const totalM = totalMinutes % 60;
@@ -54,8 +61,9 @@ export default function PrintTurniermodus() {
             <span className="accent">2026</span>
           </h1>
           <p className="lede">
-            Mexicano-Vorrunde mit Skill-Seeding · Top 4 ins K.-o.-Bracket ·
-            Finale + 3.&nbsp;Platz im Best&nbsp;of&nbsp;3.
+            Box-Liga in zwei Divisionen (Ober &amp; Unter) · feste Anzahl
+            Spiele je Team · Spassspiele fuellen freie Courts · Divisions-Finale
+            + Spiel um Platz 3.
           </p>
           <div className="meta">
             <div>
@@ -67,8 +75,8 @@ export default function PrintTurniermodus() {
               <p className="meta-val">{TOURNAMENT.venue.name}</p>
             </div>
             <div>
-              <p className="label">Plätze</p>
-              <p className="meta-val">{TOURNAMENT.courts}</p>
+              <p className="label">Plaetze</p>
+              <p className="meta-val">{courts}</p>
             </div>
             <div>
               <p className="label">Dauer geplant</p>
@@ -82,32 +90,33 @@ export default function PrintTurniermodus() {
           <li>
             <span className="step-num">01</span>
             <div>
-              <p className="step-title">Mexicano · 3 Runden</p>
+              <p className="step-title">Zwei Divisionen</p>
               <p>
-                Runde&nbsp;1 wird nach Skill geseedet (Top-Half gegen Top-Half,
-                ähnliche Stärke gegen ähnliche Stärke). Runde&nbsp;2 und&nbsp;3
-                paaren nach aktuellem Tabellenstand — Sieger spielt Sieger.
+                Alle Teams werden nach Spielstaerke in zwei Divisionen geteilt
+                (Ober = staerkere Haelfte, Unter = Rest). So spielt jeder gegen
+                aehnlich starke Gegner.
               </p>
             </div>
           </li>
           <li>
             <span className="step-num">02</span>
             <div>
-              <p className="step-title">Top 4 · K.&nbsp;o.</p>
+              <p className="step-title">Box-Liga · {roundsPerTeam} Spiele je Team</p>
               <p>
-                Die ersten vier ziehen ins Halbfinale (1&nbsp;vs&nbsp;4 /
-                2&nbsp;vs&nbsp;3) — beide Halbfinals parallel auf 2&nbsp;Courts.
+                Innerhalb der Division spielt jedes Team {roundsPerTeam}{" "}
+                verschiedene Gegner. Der Spielplan verteilt die Partien mit
+                Mindestpause auf {courts} Courts; freie Court-Zellen werden mit
+                Spassspielen (zaehlen nicht) gefuellt.
               </p>
             </div>
           </li>
           <li>
             <span className="step-num">03</span>
             <div>
-              <p className="step-title">Finale + 3.&nbsp;Platz</p>
+              <p className="step-title">Divisions-Finals</p>
               <p>
-                Sieger spielen das Finale, Verlierer spielen um Platz&nbsp;3 —
-                wieder parallel. <strong>Best of 3</strong>, mehr Drama, klarer
-                Champion.
+                Pro Division: Platz 1 vs 2 im Finale, Platz 3 vs 4 um Bronze.
+                Ein Satz pro Finale, damit das Zeitfenster haelt.
               </p>
             </div>
           </li>
@@ -155,8 +164,8 @@ export default function PrintTurniermodus() {
             )}
           </p>
           <p className="rule-meta">
-            Mexicano + Halbfinale: <strong>Best of 1</strong> &nbsp;·&nbsp;
-            Finale + 3.&nbsp;Platz: <strong>Best of 3</strong>
+            Liga-Spiele + Finals: <strong>Ein Satz</strong> &nbsp;·&nbsp;
+            Spassspiele zaehlen nicht fuer die Tabelle
           </p>
         </div>
 
@@ -165,54 +174,34 @@ export default function PrintTurniermodus() {
           <thead>
             <tr>
               <th>Phase</th>
-              <th className="num">Matches</th>
               <th className="num">Wellen</th>
               <th className="num">Zeit</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td>Mexicano R1 (BO1)</td>
-              <td className="num">5</td>
-              <td className="num">3</td>
-              <td className="num">{3 * minutesPerMatch} min</td>
+              <td>Box-Liga (beide Divisionen)</td>
+              <td className="num">{leagueSlots}</td>
+              <td className="num">{leagueSlots * minutesPerMatch} min</td>
             </tr>
             <tr>
-              <td>Mexicano R2 (BO1)</td>
-              <td className="num">5</td>
-              <td className="num">3</td>
-              <td className="num">{3 * minutesPerMatch} min</td>
-            </tr>
-            <tr>
-              <td>Mexicano R3 (BO1)</td>
-              <td className="num">5</td>
-              <td className="num">3</td>
-              <td className="num">{3 * minutesPerMatch} min</td>
-            </tr>
-            <tr>
-              <td>Halbfinale (BO1)</td>
-              <td className="num">2</td>
-              <td className="num">1</td>
-              <td className="num">{minutesPerMatch} min</td>
-            </tr>
-            <tr>
-              <td>Finale + 3.&nbsp;Platz (BO3)</td>
-              <td className="num">2</td>
-              <td className="num">1</td>
-              <td className="num">~{Math.round(minutesPerMatch * 2.5)} min</td>
+              <td>Divisions-Finals + Platz 3</td>
+              <td className="num">{finalWaves}</td>
+              <td className="num">{finalWaves * minutesPerMatch} min</td>
             </tr>
             <tr className="total">
               <td>Gesamt inkl. Wechselzeit</td>
-              <td className="num">19</td>
-              <td className="num">11</td>
+              <td className="num">{totalWaves}</td>
               <td className="num">~{totalDisplay}h</td>
             </tr>
           </tbody>
         </table>
         <p className="muted small">
-          Basierend auf 10 Teams, 2 Courts. Spielzeit ≈ {Math.round(playMinutes)} min,
-          Wechselzeit ≈ {switchMinutes} min (3&nbsp;min × 11 Wellen). Einzelmatch
-          ≈ {minutesPerMatch} min bei aktueller Set-Regel ({setRuleSummary}).
+          Basierend auf ~{planningTeams} Teams, {courts} Courts,{" "}
+          {roundsPerTeam} Spiele je Team. Spielzeit ≈ {Math.round(playMinutes)}{" "}
+          min, Wechselzeit ≈ {switchMinutes} min (3&nbsp;min ×{" "}
+          {totalWaves} Wellen). Einzelmatch ≈ {minutesPerMatch} min bei
+          aktueller Set-Regel ({setRuleSummary}).
         </p>
       </section>
 

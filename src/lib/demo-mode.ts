@@ -110,22 +110,22 @@ export async function seedDemoTeams(): Promise<{
 }
 
 /**
- * Random-score every scheduled mexicano match in the given round.
- * Skill-aware: stronger team wins more often, but upsets happen.
- * Generates a single best-of-1 set per match (Mexicano rule), respecting
- * the configured set rule (target + optional 2-game lead).
+ * Random-score every scheduled counted league match (and finals) that has both
+ * teams present. Skill-aware: stronger team wins more often, but upsets happen.
+ * Generates a single best-of-1 set per match, respecting the configured set
+ * rule (target + optional 2-game lead). Fun games are also auto-scored (they
+ * do not count for standings but should not stay open).
  */
-export async function autoScoreRound(
+export async function autoScoreLeague(
   matches: Match[],
   teams: Team[],
-  round: number,
   rule: SetRule = DEFAULT_SET_RULE,
 ): Promise<{ count: number; error: string | null }> {
   const open = matches.filter(
     (m) =>
-      m.phase === "mexicano" &&
-      m.round === round &&
+      (m.phase === "league" || m.phase === "final") &&
       m.status !== "done" &&
+      !m.is_walkover &&
       m.team_a_id &&
       m.team_b_id,
   );
@@ -144,12 +144,9 @@ export async function autoScoreRound(
     if (!teamA || !teamB) continue;
     const a = skillRank[teamA.skill_level];
     const b = skillRank[teamB.skill_level];
-    // P(A wins) ranges from ~0.25 (much weaker) to ~0.75 (much stronger).
     const diff = a - b;
     const pAwin = 0.5 + diff * 0.13;
     const aWins = Math.random() < pAwin;
-    // Loser gets 0..(target-1) games when no lead requirement,
-    // or 0..(target-2) when lead-of-2 is required (so winner reaches target with ≥2 lead).
     const loserMax = rule.twoLead ? rule.target - 2 : rule.target - 1;
     const loserScore = Math.floor(Math.random() * (loserMax + 1));
     const setA = aWins ? rule.target : loserScore;
@@ -175,6 +172,78 @@ export async function autoScoreRound(
 }
 
 /**
+ * Random-score every open match in the Swiss group + KO phases (phase
+ * 'mexicano' / 'knockout') that has both teams present. Same skill-aware logic
+ * as autoScoreLeague. Respects best_of (KO final/third = best-of-3).
+ */
+export async function autoScoreSwiss(
+  matches: Match[],
+  teams: Team[],
+  rule: SetRule = DEFAULT_SET_RULE,
+): Promise<{ count: number; error: string | null }> {
+  const open = matches.filter(
+    (m) =>
+      (m.phase === "mexicano" || m.phase === "knockout") &&
+      m.status !== "done" &&
+      !m.is_walkover &&
+      m.team_a_id &&
+      m.team_b_id,
+  );
+  if (open.length === 0) return { count: 0, error: null };
+
+  const skillRank: Record<SkillLevel, number> = {
+    advanced: 3,
+    intermediate: 2,
+    beginner: 1,
+  };
+
+  let count = 0;
+  for (const m of open) {
+    const teamA = teams.find((t) => t.id === m.team_a_id);
+    const teamB = teams.find((t) => t.id === m.team_b_id);
+    if (!teamA || !teamB) continue;
+    const a = skillRank[teamA.skill_level];
+    const b = skillRank[teamB.skill_level];
+    const pAwin = 0.5 + (a - b) * 0.13;
+    const setsNeeded = m.best_of === 3 ? 2 : 1;
+    const loserMax = rule.twoLead ? rule.target - 2 : rule.target - 1;
+
+    let setsA = 0;
+    let setsB = 0;
+    const setHistory: { a: number; b: number }[] = [];
+    // Play sets until one side reaches setsNeeded.
+    while (setsA < setsNeeded && setsB < setsNeeded) {
+      const aWinsSet = Math.random() < pAwin;
+      const loserScore = Math.floor(Math.random() * (loserMax + 1));
+      const setA = aWinsSet ? rule.target : loserScore;
+      const setB = aWinsSet ? loserScore : rule.target;
+      setHistory.push({ a: setA, b: setB });
+      if (aWinsSet) setsA++;
+      else setsB++;
+    }
+    const scoreA = setHistory.reduce((s, x) => s + x.a, 0);
+    const scoreB = setHistory.reduce((s, x) => s + x.b, 0);
+    const { error } = await supabase
+      .from("matches")
+      .update({
+        set_history: setHistory,
+        current_a: 0,
+        current_b: 0,
+        sets_a: setsA,
+        sets_b: setsB,
+        score_a: scoreA,
+        score_b: scoreB,
+        status: "done",
+        played_at: new Date().toISOString(),
+      })
+      .eq("id", m.id);
+    if (error) return { count, error: error.message };
+    count++;
+  }
+  return { count, error: null };
+}
+
+/**
  * Wipes all demo teams + demo matches and resets the tournament back to registration.
  * Reg stays in its current open/closed state — we only touch phase/round/matches/teams.
  */
@@ -189,6 +258,37 @@ export async function resetDemo(): Promise<{ error: string | null }> {
   const delTeams = await supabase.from("teams").delete().eq("is_demo", true);
   if (delTeams.error) return { error: delTeams.error.message };
 
+  const updSettings = await supabase
+    .from("settings")
+    .update({ tournament_phase: "registration", current_round: 0 })
+    .eq("id", 1);
+  if (updSettings.error) return { error: updSettings.error.message };
+
+  return { error: null };
+}
+
+/**
+ * FULL tournament reset (distinct from resetDemo). Deletes ALL matches (both
+ * modes), resets phase -> registration + current_round -> 0, reactivates any
+ * withdrawn teams and clears their division back to null. Keeps every team and
+ * all registration data. Registration open/closed state is left untouched.
+ */
+export async function resetTournament(): Promise<{ error: string | null }> {
+  // 1) Delete every match (any phase, demo + real).
+  const delMatches = await supabase
+    .from("matches")
+    .delete()
+    .not("id", "is", null);
+  if (delMatches.error) return { error: delMatches.error.message };
+
+  // 2) Reactivate withdrawn teams + clear division for all teams.
+  const updTeams = await supabase
+    .from("teams")
+    .update({ status: "active", division: null })
+    .not("id", "is", null);
+  if (updTeams.error) return { error: updTeams.error.message };
+
+  // 3) Reset the tournament phase.
   const updSettings = await supabase
     .from("settings")
     .update({ tournament_phase: "registration", current_round: 0 })

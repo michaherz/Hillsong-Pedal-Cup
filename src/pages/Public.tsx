@@ -4,7 +4,6 @@ import { TOURNAMENT } from "../lib/tournament";
 import { type SkillLevel, SKILL_LABELS } from "../lib/database.types";
 import { formatEventDate, useLang, useT } from "../lib/i18n";
 import { useSettings, useTeams, useMatches } from "../lib/hooks";
-import { demoTeamCount, hasDemoTeams } from "../lib/demo-mode";
 import TeamList from "../components/TeamList";
 import VenueCard from "../components/VenueCard";
 import InfoCards from "../components/InfoCards";
@@ -19,22 +18,36 @@ const SKILL_OPTIONS: SkillLevel[] = ["beginner", "intermediate", "advanced"];
 
 export default function Public() {
   const t = useT();
-  const teams = useTeams();
+  const allTeams = useTeams();
   const settings = useSettings();
-  const matches = useMatches();
+  const allMatches = useMatches();
   const registrationOpen = settings?.registration_open ?? null;
   const phase = settings?.tournament_phase ?? "registration";
+  const publicLive = settings?.public_live ?? false;
+
+  // Belt-and-suspenders: never leak demo/test data to the public page.
+  const teams = useMemo(
+    () => (allTeams ? allTeams.filter((t) => !t.is_demo) : allTeams),
+    [allTeams],
+  );
+  const matches = useMemo(
+    () => (allMatches ? allMatches.filter((m) => !m.is_demo) : allMatches),
+    [allMatches],
+  );
 
   const activeCount = useMemo(
     () => (teams ?? []).filter((t) => t.status === "active").length,
     [teams],
   );
 
+  // Tournament data (schedule / live board / standings / bracket) is only shown
+  // publicly when the admin has flipped public_live on AND the tournament has
+  // actually started. Default (off) = only registration/info is visible.
+  const showTournamentData = publicLive && phase !== "registration";
+
   return (
     <div className="min-h-full overflow-x-hidden bg-background">
       <TopNav />
-
-      {hasDemoTeams(teams) && <DemoBanner count={demoTeamCount(teams)} />}
 
       <main className="pt-16 sm:pt-24">
         <Hero registrationOpen={registrationOpen} />
@@ -46,22 +59,28 @@ export default function Public() {
         <RegistrationSection
           registrationOpen={registrationOpen}
           activeCount={activeCount}
+          totalCost={settings?.total_cost ?? null}
         />
 
-        {phase !== "registration" && teams && matches && (
+        {showTournamentData && teams && matches && (
           <LiveBoard
             teams={teams}
             matches={matches}
             phase={phase}
             currentRound={settings?.current_round ?? 0}
-            totalCourts={settings?.total_courts ?? 2}
+            totalCourts={settings?.total_courts ?? 3}
           />
         )}
 
         <TeamsSection teams={teams} count={activeCount} />
 
-        {phase !== "registration" && teams && matches && (
-          <PublicTournament teams={teams} matches={matches} phase={phase} />
+        {showTournamentData && teams && matches && (
+          <PublicTournament
+            teams={teams}
+            matches={matches}
+            phase={phase}
+            mode={settings?.tournament_mode ?? "box"}
+          />
         )}
 
         <Marquee text={t("marqueeBanner2")} variant="void" reverse />
@@ -92,6 +111,7 @@ function DemoBanner({ count }: { count: number }) {
     </div>
   );
 }
+void DemoBanner;
 
 /* ------------------------------ TOP NAV ------------------------------ */
 
@@ -366,13 +386,15 @@ function StatTile({
 function RegistrationSection({
   registrationOpen,
   activeCount,
+  totalCost,
 }: {
   registrationOpen: boolean | null;
   activeCount: number;
+  totalCost: number | null;
 }) {
   const t = useT();
   const { lang } = useLang();
-  const TOTAL_COST = 320;
+  const TOTAL_COST = totalCost ?? 480;
   const playerCount = activeCount * 2;
   const livePerPlayer = playerCount > 0 ? TOTAL_COST / playerCount : null;
   const isDiscounted = livePerPlayer !== null && livePerPlayer < 20;
@@ -409,7 +431,13 @@ function RegistrationSection({
             )}
           </div>
           <p className="font-body text-body-sm text-on-surface-variant sm:text-body-md">
-            {t("costNote")}
+            {t("costNote", {
+              total: new Intl.NumberFormat(lang === "de" ? "de-DE" : "en-US", {
+                style: "currency",
+                currency: "EUR",
+                maximumFractionDigits: 0,
+              }).format(TOTAL_COST),
+            })}
           </p>
         </div>
       </Reveal>

@@ -129,6 +129,8 @@ function pickCourtSlots(
 }
 
 function matchesActivePhase(m: Match, phase: TournamentPhase): boolean {
+  if (phase === "league") return m.phase === "league";
+  if (phase === "final") return m.phase === "final";
   if (phase === "mexicano") return m.phase === "mexicano";
   if (phase === "knockout") return m.phase === "knockout";
   return false;
@@ -139,6 +141,8 @@ function matchesActivePhaseAndRound(
   phase: TournamentPhase,
   round: number,
 ): boolean {
+  if (phase === "league") return m.phase === "league" && m.round === round;
+  if (phase === "final") return m.phase === "final";
   if (phase === "mexicano") return m.phase === "mexicano" && m.round === round;
   if (phase === "knockout") return m.phase === "knockout";
   return false;
@@ -226,15 +230,21 @@ function MatchLines({
   const aWin = done && match.sets_a > match.sets_b;
   const bWin = done && match.sets_b > match.sets_a;
   const phaseLabel =
-    match.phase === "mexicano"
-      ? `Mex R${match.round}${match.wave ? ` · W${match.wave}` : ""}`
-      : match.bracket_pos === "sf1"
-        ? t("bracketSF", { n: 1 })
-        : match.bracket_pos === "sf2"
-          ? t("bracketSF", { n: 2 })
-          : match.bracket_pos === "final"
-            ? t("bracketFinal")
-            : t("bracketThird");
+    match.phase === "league"
+      ? `${match.is_fun ? "FUN" : match.division ? match.division.toUpperCase() : "LIGA"}${match.wave ? ` · W${match.wave}` : ""}`
+      : match.phase === "final"
+        ? match.bracket_pos === "third"
+          ? t("bracketThird")
+          : t("bracketFinal")
+        : match.phase === "mexicano"
+          ? `Mex R${match.round}${match.wave ? ` · W${match.wave}` : ""}`
+          : match.bracket_pos === "sf1"
+            ? t("bracketSF", { n: 1 })
+            : match.bracket_pos === "sf2"
+              ? t("bracketSF", { n: 2 })
+              : match.bracket_pos === "final"
+                ? t("bracketFinal")
+                : t("bracketThird");
 
   // For done matches with multiple sets, show set-list. Otherwise show running set.
   const setList = match.set_history.map((s) => `${s.a}-${s.b}`).join(", ");

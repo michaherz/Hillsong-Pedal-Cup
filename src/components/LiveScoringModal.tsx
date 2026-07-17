@@ -29,6 +29,15 @@ export default function LiveScoringModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("live");
+  // Guard: reopening a DONE match can corrupt already-seeded finals/standings.
+  const [reopened, setReopened] = useState(false);
+
+  function confirmReopen() {
+    if (confirm(t("reopenWarning"))) {
+      setReopened(true);
+      setMode("final");
+    }
+  }
 
   // Lock body scroll while modal is open.
   useEffect(() => {
@@ -77,15 +86,21 @@ export default function LiveScoringModal({
   }
 
   const phaseLabel =
-    match.phase === "mexicano"
-      ? `Mexicano R${match.round}${match.wave ? ` · W${match.wave}` : ""}`
-      : match.bracket_pos === "sf1"
-        ? t("bracketSF", { n: 1 })
-        : match.bracket_pos === "sf2"
-          ? t("bracketSF", { n: 2 })
-          : match.bracket_pos === "final"
-            ? t("bracketFinal")
-            : t("bracketThird");
+    match.phase === "league"
+      ? `${t("leagueGamesHeading")}${match.wave ? ` · W${match.wave}` : ""}`
+      : match.phase === "final"
+        ? match.bracket_pos === "third"
+          ? t("bracketThird")
+          : t("bracketFinal")
+        : match.phase === "mexicano"
+          ? `Mexicano R${match.round}${match.wave ? ` · W${match.wave}` : ""}`
+          : match.bracket_pos === "sf1"
+            ? t("bracketSF", { n: 1 })
+            : match.bracket_pos === "sf2"
+              ? t("bracketSF", { n: 2 })
+              : match.bracket_pos === "final"
+                ? t("bracketFinal")
+                : t("bracketThird");
 
   return (
     <div
@@ -115,8 +130,18 @@ export default function LiveScoringModal({
 
         {/* Status */}
         {match.status === "done" && (
-          <div className="border-b-2 border-secondary bg-secondary/10 px-5 py-2 label-caps text-secondary">
-            {t("matchDone")} · {formatScoreLine(match)}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-secondary bg-secondary/10 px-5 py-2">
+            <span className="label-caps text-secondary">
+              {t("matchDone")} · {formatScoreLine(match)}
+            </span>
+            {!reopened && (
+              <button
+                onClick={confirmReopen}
+                className="label-caps border-2 border-tertiary px-2 py-0.5 text-tertiary transition-colors hover:bg-tertiary hover:text-deep-void"
+              >
+                {t("reopenMatch")}
+              </button>
+            )}
           </div>
         )}
         {match.status === "in_progress" && (
@@ -129,7 +154,7 @@ export default function LiveScoringModal({
         )}
 
         {/* Mode tabs */}
-        {match.status !== "done" && (
+        {(match.status !== "done" || reopened) && (
           <div className="grid grid-cols-2 border-b-2 border-outline-variant">
             <ModeTab
               active={mode === "live"}
@@ -152,7 +177,7 @@ export default function LiveScoringModal({
           </div>
         )}
 
-        {mode === "live" || match.status === "done" ? (
+        {mode === "live" || (match.status === "done" && !reopened) ? (
           <>
             {/* Score grid (live click-through) */}
             <div className="grid grid-cols-2 gap-px bg-outline-variant">

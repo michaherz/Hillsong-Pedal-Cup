@@ -1,58 +1,68 @@
 import { QRCodeSVG } from "qrcode.react";
+import { MeshGradient } from "@paper-design/shaders-react";
 import { useT } from "../lib/i18n";
 
 const PADEL_CUP = {
   name: "Padel Cup",
-  year: "2026",
   url: "https://hillsong-pedal-cup.vercel.app",
   date: "18.07.2026",
   venue: "Casa Padel · Pineapple Park",
-  primary: "#93ccff",
 };
 
 const FOOTBALL_CUP = {
   name: "Football Cup",
-  year: "2026",
   url: "https://hillsong-soccer-cup.vercel.app",
   date: "11.07.2026",
   venue: "SV München-Laim",
-  primary: "#ff8a3d",
 };
+
+const MESH_COLORS = [
+  "#0a2240",
+  "#1c66b8",
+  "#93ccff",
+  "#ff8a3d",
+  "#d85114",
+];
 
 export default function PosterSlide() {
   const t = useT();
   return (
     <div className="poster-root">
       <style>{styles}</style>
+
       <div className="poster" id="poster-canvas">
-        <div className="banner banner-top" aria-hidden>
-          <div className="banner-track">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <span key={i}>
-                SCAN &amp; ANMELDEN · THIS IS OUR SUMMER · REGISTER NOW ·{" "}
-              </span>
-            ))}
-          </div>
+        <div className="bg-shader" aria-hidden>
+          <MeshGradient
+            className="absolute inset-0 w-full h-full"
+            colors={MESH_COLORS}
+            speed={0.05}
+            distortion={0.6}
+            swirl={0.4}
+            grainMixer={0.35}
+            grainOverlay={0.2}
+          />
         </div>
 
-        <div className="diagonal-bg" aria-hidden />
+        <div className="bg-vignette" aria-hidden />
 
-        <div className="half half-left">
-          <Half cup={PADEL_CUP} scanLabel={t("posterScanLabel")} eyebrow={t("posterEyebrow")} dateLabel={t("posterDateLabel")} />
+        <h1 className="hero-headline">
+          <span className="hero-line-1">This is our</span>
+          <span className="hero-line-2">Summer</span>
+        </h1>
+
+        <div className="content content-left">
+          <Half
+            cup={PADEL_CUP}
+            scanLabel={t("posterScanLabel")}
+            dateLabel={t("posterDateLabel")}
+          />
         </div>
-
-        <div className="half half-right">
-          <Half cup={FOOTBALL_CUP} scanLabel={t("posterScanLabel")} eyebrow={t("posterEyebrow")} dateLabel={t("posterDateLabel")} />
-        </div>
-
-        <div className="banner banner-bottom" aria-hidden>
-          <div className="banner-track reverse">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <span key={i}>
-                HILLSONG MUNICH · SUMMER 2026 · GAME ON · OWN THE COURT ·{" "}
-              </span>
-            ))}
-          </div>
+        <div className="content content-right">
+          <Half
+            cup={FOOTBALL_CUP}
+            scanLabel={t("posterScanLabel")}
+            dateLabel={t("posterDateLabel")}
+          />
         </div>
       </div>
     </div>
@@ -62,25 +72,16 @@ export default function PosterSlide() {
 function Half({
   cup,
   scanLabel,
-  eyebrow,
   dateLabel,
 }: {
   cup: typeof PADEL_CUP;
   scanLabel: string;
-  eyebrow: string;
   dateLabel: string;
 }) {
   return (
     <div className="half-inner">
-      <p className="eyebrow" style={{ color: cup.primary }}>
-        {eyebrow}
-      </p>
-      <h1 className="cup-name" style={{ color: cup.primary }}>
-        {cup.name}
-        <br />
-        <span className="year">{cup.year}</span>
-      </h1>
-      <div className="qr-wrap" style={{ borderColor: cup.primary }}>
+      <h2 className="cup-name">{cup.name}</h2>
+      <div className="qr-wrap">
         <QRCodeSVG
           value={cup.url}
           size={320}
@@ -90,17 +91,13 @@ function Half({
           level="M"
         />
       </div>
-      <p className="scan-cta" style={{ color: cup.primary }}>
-        ↓ {scanLabel}
-      </p>
+      <p className="scan-cta">↓ {scanLabel}</p>
       <div className="meta">
         <p className="meta-line">
           <span className="meta-label">{dateLabel}</span>
           <span className="meta-value">{cup.date}</span>
         </p>
-        <p className="meta-line">
-          <span className="meta-value meta-venue">{cup.venue}</span>
-        </p>
+        <p className="meta-venue">{cup.venue}</p>
       </div>
     </div>
   );
@@ -121,182 +118,144 @@ const styles = `
   position: relative;
   width: min(100vw, calc(100vh * 16 / 9));
   aspect-ratio: 16 / 9;
-  background: #0a0a0a;
+  background: #000;
   overflow: hidden;
 }
 
-.diagonal-bg {
+.bg-shader {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(135deg, rgba(147, 204, 255, 0.05) 0%, rgba(147, 204, 255, 0.18) 49.6%, rgba(255, 138, 61, 0.18) 50.4%, rgba(255, 138, 61, 0.05) 100%);
+  z-index: 0;
+}
+.bg-shader > * { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.bg-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   pointer-events: none;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 50%, transparent 55%, rgba(0,0,0,0.35) 100%);
 }
 
-.half {
+.hero-headline {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 4%;
+  left: 0;
+  right: 0;
+  margin: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: "Bebas Neue", "Anton", "Oswald", "Impact", system-ui, sans-serif;
+  text-transform: uppercase;
+  font-style: italic;
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: 0.005em;
+  text-align: center;
+  color: #ffffff;
+  pointer-events: none;
+}
+.hero-line-1 {
+  font-size: clamp(24px, 3.4vw, 60px);
+  letter-spacing: 0.05em;
+}
+.hero-line-2 {
+  font-size: clamp(54px, 8.5vw, 160px);
+  margin-top: -0.05em;
+  padding-right: 0.12em;
+}
+
+.content {
+  position: absolute;
+  top: 58%;
+  transform: translateY(-50%);
+  width: 38%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 5% 4%;
-  z-index: 1;
+  z-index: 2;
 }
-.half-left {
-  left: 0;
-  right: 0;
-  clip-path: polygon(0 0, 56% 0, 44% 100%, 0 100%);
-  background: linear-gradient(135deg, rgba(147, 204, 255, 0.06), rgba(147, 204, 255, 0.18));
-  border-right: 4px solid #93ccff;
-}
-.half-right {
-  left: 0;
-  right: 0;
-  clip-path: polygon(56% 0, 100% 0, 100% 100%, 44% 100%);
-  background: linear-gradient(135deg, rgba(255, 138, 61, 0.06), rgba(255, 138, 61, 0.18));
-}
+.content-left { left: 11%; }
+.content-right { right: 11%; }
+
 .half-inner {
-  width: 38%;
+  width: 100%;
+  max-width: 560px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 1.2vh;
-}
-.half-left .half-inner { margin-right: 14%; }
-.half-right .half-inner { margin-left: 14%; }
-
-.eyebrow {
-  font-size: clamp(10px, 0.9vw, 14px);
-  letter-spacing: 0.32em;
-  text-transform: uppercase;
-  font-weight: 700;
-  margin: 0;
+  gap: 1.4vh;
 }
 
 .cup-name {
   font-family: "Bebas Neue", "Anton", "Oswald", "Impact", system-ui, sans-serif;
-  font-size: clamp(40px, 6.5vw, 110px);
-  line-height: 0.92;
-  letter-spacing: -0.01em;
+  font-size: clamp(26px, 3.4vw, 58px);
+  line-height: 1;
+  letter-spacing: 0.01em;
   text-transform: uppercase;
-  font-style: italic;
   margin: 0;
   font-weight: 900;
-  text-shadow: 0 4px 20px rgba(0,0,0,0.4);
-}
-.cup-name .year {
-  display: inline-block;
-  background: #fff;
-  color: #000;
-  padding: 0 0.2em;
-  -webkit-text-fill-color: #000;
-  font-style: normal;
+  color: #ffffff;
 }
 
 .qr-wrap {
   background: #fff;
   padding: 14px;
-  border: 4px solid;
-  box-shadow: 8px 8px 0 0 rgba(0,0,0,0.5);
+  border: 6px solid #000;
+  box-shadow:
+    10px 10px 0 0 rgba(0,0,0,0.55),
+    0 0 60px rgba(0,0,0,0.35);
 }
 .qr-wrap svg {
   display: block;
-  width: clamp(160px, 17vw, 320px);
-  height: clamp(160px, 17vw, 320px);
+  width: clamp(170px, 16.5vw, 320px);
+  height: clamp(170px, 16.5vw, 320px);
 }
 
 .scan-cta {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: clamp(12px, 1.1vw, 18px);
+  font-size: clamp(13px, 1.25vw, 20px);
   letter-spacing: 0.28em;
   text-transform: uppercase;
-  font-weight: 700;
-  margin: 0.6vh 0 0;
+  font-weight: 800;
+  margin: 0.4vh 0 0;
+  color: #ffffff;
+  background: rgba(0,0,0,0.55);
+  padding: 7px 16px;
+  border: 2px solid rgba(255,255,255,0.85);
 }
 
 .meta {
-  margin-top: 0.6vh;
+  margin-top: 0.4vh;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  color: #ffffff;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  color: rgba(255, 255, 255, 0.86);
 }
 .meta-line {
   display: flex;
-  gap: 0.8em;
+  gap: 0.7em;
   align-items: baseline;
   justify-content: center;
   margin: 0;
-  font-size: clamp(11px, 1vw, 16px);
+  font-size: clamp(13px, 1.15vw, 18px);
 }
 .meta-label {
-  letter-spacing: 0.2em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.5);
+  opacity: 0.85;
+  font-weight: 700;
 }
-.meta-value { font-weight: 700; }
-.meta-venue { font-size: clamp(11px, 0.95vw, 15px); color: rgba(255,255,255,0.7); }
-
-.banner {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 6.5%;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  z-index: 2;
-  background: #fff;
-  color: #000;
-  border-top: 3px solid #000;
-  border-bottom: 3px solid #000;
-}
-.banner-top {
-  top: 4%;
-  transform: rotate(-1.5deg);
-  margin-left: -2%;
-  width: 104%;
-}
-.banner-bottom {
-  bottom: 4%;
-  transform: rotate(1.5deg);
-  margin-left: -2%;
-  width: 104%;
-  background: #000;
-  color: #fff;
-  border-color: #fff;
-}
-.banner-track {
-  display: flex;
-  white-space: nowrap;
-  font-family: "Bebas Neue", "Anton", "Oswald", "Impact", system-ui, sans-serif;
-  font-style: italic;
-  font-size: clamp(14px, 1.6vw, 24px);
-  letter-spacing: 0.04em;
-  font-weight: 900;
-  text-transform: uppercase;
-  animation: scroll 30s linear infinite;
-}
-.banner-track.reverse { animation: scroll-reverse 30s linear infinite; }
-
-@keyframes scroll {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-@keyframes scroll-reverse {
-  from { transform: translateX(-50%); }
-  to { transform: translateX(0); }
-}
-
-@media print {
-  @page { size: A4 landscape; margin: 0; }
-  html, body { background: #0a0a0a !important; }
-  .poster-root { min-height: auto; }
-  .poster { width: 297mm; height: 210mm; aspect-ratio: auto; }
-  .banner-track { animation: none; }
-  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.meta-value { font-weight: 800; }
+.meta-venue {
+  margin: 0;
+  font-size: clamp(12px, 1.05vw, 17px);
+  opacity: 0.95;
+  font-weight: 700;
 }
 `;

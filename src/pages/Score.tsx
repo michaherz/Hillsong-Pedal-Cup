@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
 import type { Session } from "@supabase/supabase-js";
 import { ADMIN_EMAIL, supabase } from "../lib/supabase";
-import { type Settings, type Team } from "../lib/database.types";
+import { type Settings, type Team, type Match, type Division, type Database } from "../lib/database.types";
 import { useMatches, useSettings, useTeams } from "../lib/hooks";
 import { TOURNAMENT } from "../lib/tournament";
 import { useT } from "../lib/i18n";
+import { resetTournament } from "../lib/demo-mode";
 import TournamentPanel from "../components/TournamentPanel";
 
 export default function Score() {
@@ -153,6 +154,13 @@ function Admin({ onSignOut }: { onSignOut: () => void }) {
         </div>
 
         {settings && <SetRuleCard settings={settings} />}
+        {settings && (
+          <ModeAndVisibilityCard
+            settings={settings}
+            scheduleExists={(matches ?? []).length > 0}
+          />
+        )}
+        {settings && <TournamentConfigCard settings={settings} />}
 
         <section className="border-2 border-outline-variant bg-surface-container">
           <header className="flex items-center justify-between border-b-2 border-outline-variant px-5 py-4">
@@ -163,7 +171,11 @@ function Admin({ onSignOut }: { onSignOut: () => void }) {
               {t("adminTotal", { count: teams?.length ?? 0 })}
             </p>
           </header>
-          <AdminTeamTable teams={teams} />
+          <AdminTeamTable
+            teams={teams}
+            matches={matches}
+            phase={settings?.tournament_phase ?? "registration"}
+          />
         </section>
 
         {settings && teams && matches && (
@@ -173,6 +185,8 @@ function Admin({ onSignOut }: { onSignOut: () => void }) {
             settings={settings}
           />
         )}
+
+        {settings && <DangerZone />}
       </div>
     </div>
   );
@@ -395,7 +409,169 @@ function SetRuleCard({ settings }: { settings: Settings }) {
   );
 }
 
-function AdminTeamTable({ teams }: { teams: Team[] | null }) {
+/* ---------------------------------------------------------- Mode + visibility */
+
+function ModeAndVisibilityCard({
+  settings,
+  scheduleExists,
+}: {
+  settings: Settings;
+  scheduleExists: boolean;
+}) {
+  const t = useT();
+  const [busy, setBusy] = useState(false);
+  const mode = settings.tournament_mode ?? "box";
+  const publicLive = settings.public_live ?? false;
+
+  async function update(
+    patch: Database["public"]["Tables"]["settings"]["Update"],
+  ) {
+    if (busy) return;
+    setBusy(true);
+    await supabase.from("settings").update(patch).eq("id", 1);
+    setBusy(false);
+  }
+
+  return (
+    <div className="border-2 border-outline-variant bg-surface-container p-5">
+      {/* Tournament mode */}
+      <div className="flex items-baseline justify-between gap-3">
+        <div>
+          <p className="label-caps text-on-surface-variant">{t("modeHeading")}</p>
+          <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.12em] text-on-surface-variant">
+            {scheduleExists ? t("modeLockedHint") : t("modeHint")}
+          </p>
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        {(
+          [
+            { key: "box" as const, label: t("modeBox"), desc: t("modeBoxDesc") },
+            { key: "swiss" as const, label: t("modeSwiss"), desc: t("modeSwissDesc") },
+          ]
+        ).map((opt) => {
+          const active = mode === opt.key;
+          return (
+            <button
+              key={opt.key}
+              onClick={() => update({ tournament_mode: opt.key })}
+              disabled={busy || scheduleExists}
+              className={`border-2 p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                active
+                  ? "border-primary bg-primary/10"
+                  : "border-outline-variant hover:border-primary"
+              }`}
+            >
+              <span
+                className={`block font-display text-headline-sm uppercase ${
+                  active ? "text-primary" : "text-stadium-white"
+                }`}
+              >
+                {opt.label}
+              </span>
+              <span className="mt-1 block font-body text-body-sm text-on-surface-variant">
+                {opt.desc}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Public visibility */}
+      <div className="mt-5 border-t-2 border-outline-variant pt-5">
+        <div className="flex items-baseline justify-between gap-3">
+          <div>
+            <p className="label-caps text-on-surface-variant">
+              {t("publicVisibleHeading")}
+            </p>
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.12em] text-on-surface-variant">
+              {t("publicVisibleHint")}
+            </p>
+          </div>
+          <span
+            className={`shrink-0 label-caps border-2 px-2 py-1 ${
+              publicLive
+                ? "border-secondary bg-secondary/15 text-secondary"
+                : "border-tertiary bg-tertiary/15 text-tertiary"
+            }`}
+          >
+            {publicLive ? t("publicVisibleOn") : t("publicVisibleOff")}
+          </span>
+        </div>
+        <button
+          onClick={() => update({ public_live: !publicLive })}
+          disabled={busy}
+          className={`${publicLive ? "btn-ghost" : "btn-primary"} mt-3 w-full`}
+        >
+          {busy ? "…" : publicLive ? t("publicHide") : t("publicShow")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------- Danger zone */
+
+function DangerZone() {
+  const t = useT();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+
+  async function onReset() {
+    if (!confirm(t("resetConfirm"))) return;
+    setBusy(true);
+    setError(null);
+    setInfo(null);
+    const { error: e } = await resetTournament();
+    setBusy(false);
+    if (e) {
+      setError(e);
+      return;
+    }
+    setInfo(t("resetDone"));
+  }
+
+  return (
+    <section className="border-2 border-error/50 bg-error/5 p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <div>
+          <p className="label-caps text-error">{t("resetHeading")}</p>
+          <p className="mt-1 max-w-2xl font-body text-body-sm text-on-surface-variant">
+            {t("resetHint")}
+          </p>
+        </div>
+        <button
+          onClick={onReset}
+          disabled={busy}
+          className="border-2 border-error px-3 py-1.5 label-caps text-error transition-colors hover:bg-error hover:text-stadium-white disabled:opacity-40"
+        >
+          {busy ? "…" : t("resetButton")}
+        </button>
+      </div>
+      {error && (
+        <p className="mt-3 border-2 border-error bg-error-container/40 px-3 py-2 text-sm text-error">
+          {error}
+        </p>
+      )}
+      {info && !error && (
+        <p className="mt-3 border-2 border-secondary bg-secondary/10 px-3 py-2 text-sm text-secondary">
+          {info}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function AdminTeamTable({
+  teams,
+  matches,
+  phase,
+}: {
+  teams: Team[] | null;
+  matches: Match[] | null;
+  phase: Settings["tournament_phase"];
+}) {
   const t = useT();
   if (teams === null) {
     return (
@@ -414,13 +590,29 @@ function AdminTeamTable({ teams }: { teams: Team[] | null }) {
   return (
     <ul className="divide-y-2 divide-outline-variant">
       {teams.map((team, idx) => (
-        <AdminTeamRow key={team.id} team={team} index={idx} />
+        <AdminTeamRow
+          key={team.id}
+          team={team}
+          index={idx}
+          phase={phase}
+          matches={matches ?? []}
+        />
       ))}
     </ul>
   );
 }
 
-function AdminTeamRow({ team, index }: { team: Team; index: number }) {
+function AdminTeamRow({
+  team,
+  index,
+  phase,
+  matches,
+}: {
+  team: Team;
+  index: number;
+  phase: Settings["tournament_phase"];
+  matches: Match[];
+}) {
   const t = useT();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(team.team_name);
@@ -428,6 +620,9 @@ function AdminTeamRow({ team, index }: { team: Team; index: number }) {
   const [p2, setP2] = useState(team.player_2);
   const [skill, setSkill] = useState(team.skill_level);
   const [busy, setBusy] = useState(false);
+
+  const scheduleExists = phase !== "registration";
+  const withdrawn = team.status === "withdrawn";
 
   const skillLabel: Record<Team["skill_level"], string> = {
     beginner: t("skillBeginner"),
@@ -450,10 +645,60 @@ function AdminTeamRow({ team, index }: { team: Team; index: number }) {
     setEditing(false);
   }
 
+  // Hard delete — only allowed before a schedule exists.
   async function remove() {
     if (!confirm(t("confirmDelete", { name: team.team_name }))) return;
     setBusy(true);
     await supabase.from("teams").delete().eq("id", team.id);
+    setBusy(false);
+  }
+
+  // Soft-withdraw: mark team withdrawn, turn its counted matches into walkovers,
+  // delete its fun games. Reversible via reactivate (but walkovers stay done).
+  async function withdraw() {
+    if (!confirm(t("confirmWithdraw", { name: team.team_name }))) return;
+    setBusy(true);
+    await supabase.from("teams").update({ status: "withdrawn" }).eq("id", team.id);
+
+    if (scheduleExists) {
+      const involved = matches.filter(
+        (m) =>
+          (m.team_a_id === team.id || m.team_b_id === team.id) &&
+          m.status !== "done",
+      );
+      for (const m of involved) {
+        if (m.is_fun) {
+          // Fun games with a withdrawn team: delete.
+          await supabase.from("matches").delete().eq("id", m.id);
+          continue;
+        }
+        // Counted match: opponent wins by walkover.
+        const opponentPresent =
+          (m.team_a_id === team.id ? m.team_b_id : m.team_a_id) != null;
+        if (opponentPresent) {
+          await supabase
+            .from("matches")
+            .update({
+              is_walkover: true,
+              status: "done",
+              played_at: new Date().toISOString(),
+            })
+            .eq("id", m.id);
+        }
+      }
+    }
+    setBusy(false);
+  }
+
+  async function reactivate() {
+    setBusy(true);
+    await supabase.from("teams").update({ status: "active" }).eq("id", team.id);
+    setBusy(false);
+  }
+
+  async function setDivision(division: Division | null) {
+    setBusy(true);
+    await supabase.from("teams").update({ division }).eq("id", team.id);
     setBusy(false);
   }
 
@@ -506,7 +751,11 @@ function AdminTeamRow({ team, index }: { team: Team; index: number }) {
   }
 
   return (
-    <li className="flex items-center gap-4 p-4">
+    <li
+      className={`flex items-center gap-4 p-4 ${
+        withdrawn ? "opacity-50" : ""
+      }`}
+    >
       <span className="w-10 shrink-0 font-mono text-label-caps text-on-surface-variant">
         #{String(index + 1).padStart(2, "0")}
       </span>
@@ -518,27 +767,206 @@ function AdminTeamRow({ team, index }: { team: Team; index: number }) {
               {t("demoBadge")}
             </span>
           )}
+          {withdrawn && (
+            <span className="label-caps shrink-0 border-2 border-error bg-error/15 px-1.5 py-0 text-[10px] text-error">
+              {t("withdrawnBadge")}
+            </span>
+          )}
         </p>
         <p className="truncate font-body text-body-sm text-on-surface-variant">
           {team.player_1} · {team.player_2} · {skillLabel[team.skill_level]}
         </p>
+        {/* Division control */}
+        <div className="mt-2 flex items-center gap-1">
+          <span className="label-caps mr-1 text-on-surface-variant">
+            {t("divisionLabel")}
+          </span>
+          {(
+            [
+              { key: null, label: t("divisionAuto") },
+              { key: "ober" as const, label: t("divisionOber") },
+              { key: "unter" as const, label: t("divisionUnter") },
+            ] as const
+          ).map((opt) => (
+            <button
+              key={String(opt.key)}
+              onClick={() => setDivision(opt.key)}
+              disabled={busy}
+              className={`label-caps border-2 px-2 py-0.5 text-[10px] transition-colors ${
+                team.division === opt.key
+                  ? "border-primary bg-primary text-on-primary-container"
+                  : "border-outline-variant text-on-surface-variant hover:border-primary"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
-      <div className="flex shrink-0 gap-1">
+      <div className="flex shrink-0 flex-col items-end gap-1">
         <button
           onClick={() => setEditing(true)}
           className="label-caps px-2 py-1 text-on-surface-variant transition-colors hover:text-primary"
         >
           {t("adminEdit")}
         </button>
-        <button
-          onClick={remove}
-          disabled={busy}
-          className="label-caps px-2 py-1 text-error transition-colors hover:text-stadium-white"
-        >
-          {t("adminDelete")}
-        </button>
+        {withdrawn ? (
+          <button
+            onClick={reactivate}
+            disabled={busy}
+            className="label-caps px-2 py-1 text-secondary transition-colors hover:text-stadium-white"
+          >
+            {t("reactivate")}
+          </button>
+        ) : (
+          <button
+            onClick={withdraw}
+            disabled={busy}
+            className="label-caps px-2 py-1 text-error transition-colors hover:text-stadium-white"
+          >
+            {t("withdrawTeam")}
+          </button>
+        )}
+        {!scheduleExists && (
+          <button
+            onClick={remove}
+            disabled={busy}
+            className="label-caps px-2 py-1 text-on-surface-variant transition-colors hover:text-error"
+          >
+            {t("adminDelete")}
+          </button>
+        )}
       </div>
     </li>
+  );
+}
+
+/* ---------------------------------------------------------- Runtime config */
+
+function TournamentConfigCard({ settings }: { settings: Settings }) {
+  const t = useT();
+  const [busy, setBusy] = useState(false);
+
+  async function update(patch: Database["public"]["Tables"]["settings"]["Update"]) {
+    if (busy) return;
+    setBusy(true);
+    await supabase.from("settings").update(patch).eq("id", 1);
+    setBusy(false);
+  }
+
+  return (
+    <div className="border-2 border-outline-variant bg-surface-container p-5">
+      <p className="label-caps text-on-surface-variant">{t("configHeading")}</p>
+      <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.12em] text-on-surface-variant">
+        {t("configHint")}
+      </p>
+      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <NumberField
+          label={t("configTotalCost")}
+          value={settings.total_cost ?? 480}
+          min={0}
+          step={10}
+          busy={busy}
+          onCommit={(v) => update({ total_cost: v })}
+        />
+        <NumberField
+          label={t("configTotalCourts")}
+          value={settings.total_courts ?? 3}
+          min={1}
+          max={10}
+          busy={busy}
+          onCommit={(v) => update({ total_courts: v })}
+        />
+        <NumberField
+          label={t("configRoundsPerTeam")}
+          value={settings.rounds_per_team ?? 4}
+          min={1}
+          max={12}
+          busy={busy}
+          onCommit={(v) => update({ rounds_per_team: v })}
+        />
+        <NumberField
+          label={t("configMinRest")}
+          value={settings.min_rest_slots ?? 2}
+          min={0}
+          max={5}
+          busy={busy}
+          onCommit={(v) => update({ min_rest_slots: v })}
+        />
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-4">
+        <label className="block">
+          <span className="label-caps mb-1 block text-on-surface-variant">
+            {t("configEventDate")}
+          </span>
+          <input
+            type="date"
+            className="input"
+            defaultValue={settings.event_date ?? ""}
+            disabled={busy}
+            onBlur={(e) => update({ event_date: e.target.value || null })}
+          />
+        </label>
+        <label className="block">
+          <span className="label-caps mb-1 block text-on-surface-variant">
+            {t("configStartTime")}
+          </span>
+          <input
+            type="time"
+            className="input"
+            defaultValue={settings.start_time ?? ""}
+            disabled={busy}
+            onBlur={(e) => update({ start_time: e.target.value || null })}
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function NumberField({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  busy,
+  onCommit,
+}: {
+  label: string;
+  value: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  busy: boolean;
+  onCommit: (v: number) => void;
+}) {
+  const [local, setLocal] = useState(String(value));
+  useEffect(() => setLocal(String(value)), [value]);
+  return (
+    <label className="block">
+      <span className="label-caps mb-1 block text-on-surface-variant">
+        {label}
+      </span>
+      <input
+        type="number"
+        className="input"
+        min={min}
+        max={max}
+        step={step}
+        value={local}
+        disabled={busy}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={() => {
+          let n = parseFloat(local);
+          if (Number.isNaN(n)) n = value;
+          if (min != null) n = Math.max(min, n);
+          if (max != null) n = Math.min(max, n);
+          if (n !== value) onCommit(n);
+          setLocal(String(n));
+        }}
+      />
+    </label>
   );
 }
 

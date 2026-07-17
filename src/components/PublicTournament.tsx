@@ -1,22 +1,40 @@
 import { useMemo } from "react";
-import type { Match, Team, TournamentPhase } from "../lib/database.types";
-import { computeStandings, type Standing } from "../lib/tournament-engine";
+import type { Division, Match, Team, TournamentMode, TournamentPhase } from "../lib/database.types";
+import {
+  computeDivisionStandings,
+  computeSwissStandings,
+  type Standing,
+} from "../lib/tournament-engine";
 import { useT } from "../lib/i18n";
 
 type Props = {
   teams: Team[];
   matches: Match[];
   phase: TournamentPhase;
+  mode?: TournamentMode;
 };
 
-export default function PublicTournament({ teams, matches, phase }: Props) {
+const DIVISIONS: Division[] = ["ober", "unter"];
+
+export default function PublicTournament({ teams, matches, phase, mode = "box" }: Props) {
+  if (phase === "registration") return null;
+  if (mode === "swiss") {
+    return <SwissPublicTournament teams={teams} matches={matches} phase={phase} />;
+  }
+  return <BoxPublicTournament teams={teams} matches={matches} phase={phase} />;
+}
+
+function BoxPublicTournament({ teams, matches, phase }: Props) {
   const t = useT();
-  const standings = useMemo(
-    () => computeStandings(teams, matches),
+  const standingsByDiv = useMemo(
+    () => ({
+      ober: computeDivisionStandings(teams, matches, "ober"),
+      unter: computeDivisionStandings(teams, matches, "unter"),
+    }),
     [teams, matches],
   );
 
-  if (phase === "registration") return null;
+  const showFinals = phase === "final" || phase === "finished";
 
   return (
     <section
@@ -28,18 +46,102 @@ export default function PublicTournament({ teams, matches, phase }: Props) {
           {t("tournamentSection")}
         </p>
         <h2 className="mt-2 font-display text-display-md uppercase leading-none text-stadium-white sm:text-display-lg">
-          {t("standingsHeading")} &amp; Bracket
+          {t("standingsHeading")}
         </h2>
       </div>
 
-      <div className="space-y-8">
-        <StandingsBoard standings={standings} teams={teams} />
-
-        {(phase === "knockout" || phase === "finished") && (
-          <BracketBoard teams={teams} matches={matches} />
-        )}
+      <div className="grid gap-8 lg:grid-cols-2">
+        {DIVISIONS.map((div) => (
+          <div key={div} className="space-y-6">
+            <StandingsBoard
+              title={divisionLabel(t, div)}
+              standings={standingsByDiv[div]}
+              teams={teams}
+            />
+            {showFinals && (
+              <DivisionFinals division={div} teams={teams} matches={matches} />
+            )}
+          </div>
+        ))}
       </div>
     </section>
+  );
+}
+
+/* ---------------------------------------------------------- Swiss public */
+
+function SwissPublicTournament({ teams, matches, phase }: Props) {
+  const t = useT();
+  const standings = useMemo(
+    () => computeSwissStandings(teams, matches),
+    [teams, matches],
+  );
+  const showKO = phase === "knockout" || phase === "finished";
+
+  return (
+    <section
+      id="tournament"
+      className="mx-auto w-full max-w-[1440px] scroll-mt-24 px-5 pb-16 sm:scroll-mt-28 sm:px-12 sm:pb-24"
+    >
+      <div className="mb-6 sm:mb-10">
+        <p className="label-caps-lg text-primary">{t("tournamentSection")}</p>
+        <h2 className="mt-2 font-display text-display-md uppercase leading-none text-stadium-white sm:text-display-lg">
+          {t("standingsHeading")}
+        </h2>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-2">
+        <StandingsBoard
+          title={t("standingsHeading")}
+          standings={standings}
+          teams={teams}
+          podium={4}
+        />
+        {showKO && <SwissBracket teams={teams} matches={matches} />}
+      </div>
+    </section>
+  );
+}
+
+function SwissBracket({ teams, matches }: { teams: Team[]; matches: Match[] }) {
+  const t = useT();
+  const find = (pos: "sf1" | "sf2" | "final" | "third") =>
+    matches.find((m) => m.phase === "knockout" && m.bracket_pos === pos) ?? null;
+  const sf1 = find("sf1");
+  const sf2 = find("sf2");
+  const final = find("final");
+  const third = find("third");
+  if (!sf1 && !sf2 && !final && !third) return null;
+  return (
+    <div className="border-2 border-outline-variant bg-surface-container">
+      <header className="border-b-2 border-outline-variant px-5 py-4 sm:px-6">
+        <h3 className="font-display text-headline-sm uppercase text-stadium-white sm:text-headline-md">
+          {t("bracketSemifinals")} + {t("finalsHeading")}
+        </h3>
+      </header>
+      <div className="space-y-3 p-5">
+        {sf1 ? (
+          <FinalCard teams={teams} match={sf1} label={t("bracketSF", { n: 1 })} />
+        ) : (
+          <PlaceholderCard label={t("bracketSF", { n: 1 })} />
+        )}
+        {sf2 ? (
+          <FinalCard teams={teams} match={sf2} label={t("bracketSF", { n: 2 })} />
+        ) : (
+          <PlaceholderCard label={t("bracketSF", { n: 2 })} />
+        )}
+        {final ? (
+          <FinalCard teams={teams} match={final} label={t("bracketFinal")} highlight />
+        ) : (
+          <PlaceholderCard label={t("bracketFinal")} />
+        )}
+        {third ? (
+          <FinalCard teams={teams} match={third} label={t("bracketThird")} />
+        ) : (
+          <PlaceholderCard label={t("bracketThird")} />
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -53,266 +155,156 @@ function teamIsDemo(teams: Team[], id: string | null | undefined): boolean {
   return teams.find((t) => t.id === id)?.is_demo === true;
 }
 
+function divisionLabel(t: ReturnType<typeof useT>, div: Division): string {
+  return div === "ober" ? t("divisionOber") : t("divisionUnter");
+}
+
 /* ---------------------------------------------------------- Standings */
 
 function StandingsBoard({
+  title,
   standings,
   teams,
+  podium = 2,
 }: {
+  title: string;
   standings: Standing[];
   teams: Team[];
+  podium?: number;
 }) {
   const t = useT();
-  if (standings.length === 0) {
-    return (
-      <div className="border-2 border-dashed border-outline-variant bg-surface-container p-8 text-center">
-        <p className="label-caps text-on-surface-variant">
-          {t("noMatchesYet")}
-        </p>
-      </div>
-    );
-  }
   return (
     <div className="border-2 border-outline-variant bg-surface-container">
       <header className="flex items-center justify-between border-b-2 border-outline-variant px-5 py-4 sm:px-6">
         <h3 className="font-display text-headline-sm uppercase text-stadium-white sm:text-headline-md">
-          {t("standingsHeading")}
+          {title}
         </h3>
         <p className="label-caps text-on-surface-variant">
           {t("adminTotal", { count: standings.length })}
         </p>
       </header>
-      <div className="overflow-x-auto">
-        <table className="w-full text-body-sm">
-          <thead>
-            <tr className="label-caps text-on-surface-variant">
-              <th className="px-3 py-3 text-left sm:px-5">
-                {t("standingsPos")}
-              </th>
-              <th className="px-3 py-3 text-left sm:px-5">
-                {t("standingsTeam")}
-              </th>
-              <th className="px-3 py-3 text-right sm:px-5">
-                {t("standingsPlayed")}
-              </th>
-              <th className="hidden px-3 py-3 text-right sm:table-cell sm:px-5">
-                {t("standingsWL")}
-              </th>
-              <th className="px-3 py-3 text-right sm:px-5">
-                {t("standingsGames")}
-              </th>
-              <th className="px-3 py-3 text-right sm:px-5">
-                {t("standingsPoints")}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {standings.map((s) => {
-              const isPodium = s.position <= 4;
-              return (
-                <tr
-                  key={s.teamId}
-                  className={`border-t-2 border-outline-variant transition-colors ${
-                    isPodium ? "bg-primary/5" : ""
-                  }`}
-                >
-                  <td className="px-3 py-3 font-mono text-on-surface-variant sm:px-5">
-                    {isPodium && (
-                      <span className="mr-2 inline-block h-1.5 w-1.5 -translate-y-0.5 rounded-full bg-primary" />
-                    )}
-                    {s.position}
-                  </td>
-                  <td className="truncate px-3 py-3 font-display uppercase text-stadium-white sm:px-5 sm:text-headline-sm">
-                    <span className="inline-flex items-center gap-2">
-                      {teamName(teams, s.teamId)}
-                      {teamIsDemo(teams, s.teamId) && (
-                        <span className="label-caps border-2 border-tertiary bg-tertiary/15 px-1.5 py-0 text-[10px] text-tertiary">
-                          DEMO
-                        </span>
+      {standings.length === 0 ? (
+        <div className="p-6 text-center label-caps text-on-surface-variant">
+          {t("noMatchesYet")}
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-body-sm">
+            <thead>
+              <tr className="label-caps text-on-surface-variant">
+                <th className="px-3 py-3 text-left sm:px-5">
+                  {t("standingsPos")}
+                </th>
+                <th className="px-3 py-3 text-left sm:px-5">
+                  {t("standingsTeam")}
+                </th>
+                <th className="px-3 py-3 text-right sm:px-5">
+                  {t("standingsPlayed")}
+                </th>
+                <th className="hidden px-3 py-3 text-right sm:table-cell sm:px-5">
+                  {t("standingsWL")}
+                </th>
+                <th className="px-3 py-3 text-right sm:px-5">
+                  {t("standingsGames")}
+                </th>
+                <th className="px-3 py-3 text-right sm:px-5">
+                  {t("standingsPoints")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {standings.map((s) => {
+                const isPodium = s.position <= podium;
+                return (
+                  <tr
+                    key={s.teamId}
+                    className={`border-t-2 border-outline-variant transition-colors ${
+                      isPodium ? "bg-primary/5" : ""
+                    }`}
+                  >
+                    <td className="px-3 py-3 font-mono text-on-surface-variant sm:px-5">
+                      {isPodium && (
+                        <span className="mr-2 inline-block h-1.5 w-1.5 -translate-y-0.5 rounded-full bg-primary" />
                       )}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3 text-right tabular-nums text-on-surface sm:px-5">
-                    {s.played}
-                  </td>
-                  <td className="hidden px-3 py-3 text-right tabular-nums text-on-surface sm:table-cell sm:px-5">
-                    {s.wins}-{s.losses}
-                  </td>
-                  <td className="px-3 py-3 text-right tabular-nums text-on-surface sm:px-5">
-                    {s.gamesDiff > 0 ? "+" : ""}
-                    {s.gamesDiff}
-                  </td>
-                  <td className="px-3 py-3 text-right font-display tabular-nums text-primary sm:px-5 sm:text-headline-sm">
-                    {s.points}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                      {s.position}
+                    </td>
+                    <td className="truncate px-3 py-3 font-display uppercase text-stadium-white sm:px-5 sm:text-headline-sm">
+                      <span className="inline-flex items-center gap-2">
+                        {teamName(teams, s.teamId)}
+                        {teamIsDemo(teams, s.teamId) && (
+                          <span className="label-caps border-2 border-tertiary bg-tertiary/15 px-1.5 py-0 text-[10px] text-tertiary">
+                            DEMO
+                          </span>
+                        )}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 text-right tabular-nums text-on-surface sm:px-5">
+                      {s.played}
+                    </td>
+                    <td className="hidden px-3 py-3 text-right tabular-nums text-on-surface sm:table-cell sm:px-5">
+                      {s.wins}-{s.losses}
+                    </td>
+                    <td className="px-3 py-3 text-right tabular-nums text-on-surface sm:px-5">
+                      {s.gamesDiff > 0 ? "+" : ""}
+                      {s.gamesDiff}
+                    </td>
+                    <td className="px-3 py-3 text-right font-display tabular-nums text-primary sm:px-5 sm:text-headline-sm">
+                      {s.points}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
 
-/* ---------------------------------------------------------- Bracket */
+/* ---------------------------------------------------------- Division finals */
 
-function BracketBoard({ teams, matches }: { teams: Team[]; matches: Match[] }) {
+function DivisionFinals({
+  division,
+  teams,
+  matches,
+}: {
+  division: Division;
+  teams: Team[];
+  matches: Match[];
+}) {
   const t = useT();
-  const sf1 = matches.find(
-    (m) => m.phase === "knockout" && m.bracket_pos === "sf1",
-  );
-  const sf2 = matches.find(
-    (m) => m.phase === "knockout" && m.bracket_pos === "sf2",
-  );
   const final = matches.find(
-    (m) => m.phase === "knockout" && m.bracket_pos === "final",
+    (m) => m.phase === "final" && m.division === division && m.bracket_pos === "final",
   );
   const third = matches.find(
-    (m) => m.phase === "knockout" && m.bracket_pos === "third",
+    (m) => m.phase === "final" && m.division === division && m.bracket_pos === "third",
   );
-
+  if (!final && !third) return null;
   return (
     <div className="border-2 border-outline-variant bg-surface-container">
       <header className="border-b-2 border-outline-variant px-5 py-4 sm:px-6">
         <h3 className="font-display text-headline-sm uppercase text-stadium-white sm:text-headline-md">
-          KO-Bracket
+          {divisionLabel(t, division)} · {t("finalsHeading")}
         </h3>
       </header>
-
-      <div className="overflow-x-auto">
-        {/* Mobile: stacked vertical view */}
-        <div className="space-y-4 p-5 sm:hidden">
-          <BracketColumn label={t("bracketSemifinals")}>
-            {sf1 && <MatchCard teams={teams} match={sf1} label="SF 1" />}
-            {sf2 && <MatchCard teams={teams} match={sf2} label="SF 2" />}
-          </BracketColumn>
-          <BracketColumn label="Finale">
-            {final ? (
-              <MatchCard teams={teams} match={final} label="Finale" highlight />
-            ) : (
-              <PlaceholderCard label="Finale" />
-            )}
-          </BracketColumn>
-          <BracketColumn label="3. Platz">
-            {third ? (
-              <MatchCard teams={teams} match={third} label="3. Platz" />
-            ) : (
-              <PlaceholderCard label="3. Platz" />
-            )}
-          </BracketColumn>
-        </div>
-
-        {/* Desktop: left-to-right tree */}
-        <div className="hidden p-6 sm:block lg:p-8">
-          <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-4 lg:gap-8">
-            {/* Column 1: Semifinals */}
-            <div className="flex flex-col gap-12 lg:gap-20">
-              {sf1 ? (
-                <MatchCard teams={teams} match={sf1} label={t("bracketSF", { n: 1 })} />
-              ) : (
-                <PlaceholderCard label={t("bracketSF", { n: 1 })} />
-              )}
-              {sf2 ? (
-                <MatchCard teams={teams} match={sf2} label={t("bracketSF", { n: 2 })} />
-              ) : (
-                <PlaceholderCard label={t("bracketSF", { n: 2 })} />
-              )}
-            </div>
-
-            {/* Connector 1: SF → Final */}
-            <BracketConnector />
-
-            {/* Column 2: Final */}
-            <div className="flex justify-center">
-              {final ? (
-                <MatchCard
-                  teams={teams}
-                  match={final}
-                  label="Finale"
-                  highlight
-                />
-              ) : (
-                <PlaceholderCard label="Finale" />
-              )}
-            </div>
-
-            {/* Connector 2: Final → Champion */}
-            <ChampionArrow />
-
-            {/* Column 3: Champion */}
-            <div className="flex justify-center">
-              <ChampionCard teams={teams} match={final} />
-            </div>
-          </div>
-
-          {/* Third-place row below the main bracket */}
-          <div className="mt-10 grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-4 border-t-2 border-outline-variant pt-8 lg:gap-8">
-            <div className="col-start-1 flex justify-end">
-              {third ? (
-                <MatchCard teams={teams} match={third} label="3. Platz" />
-              ) : (
-                <PlaceholderCard label="3. Platz" />
-              )}
-            </div>
-            <div className="col-start-2 flex items-center">
-              <span className="label-caps px-4 text-tertiary">→</span>
-            </div>
-            <div className="col-start-3 flex justify-center">
-              <ThirdCard teams={teams} match={third} />
-            </div>
-          </div>
-        </div>
+      <div className="space-y-3 p-5">
+        {final ? (
+          <FinalCard teams={teams} match={final} label={t("bracketFinal")} highlight />
+        ) : (
+          <PlaceholderCard label={t("bracketFinal")} />
+        )}
+        {third ? (
+          <FinalCard teams={teams} match={third} label={t("bracketThird")} />
+        ) : (
+          <PlaceholderCard label={t("bracketThird")} />
+        )}
       </div>
     </div>
   );
 }
 
-function BracketColumn({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <p className="label-caps mb-3 text-on-surface-variant">{label}</p>
-      <div className="space-y-3">{children}</div>
-    </div>
-  );
-}
-
-function BracketConnector() {
-  return (
-    <div
-      aria-hidden
-      className="relative h-32 w-12 lg:h-48 lg:w-16"
-      style={{
-        borderTop: "2px solid #3f4850",
-        borderBottom: "2px solid #3f4850",
-        borderRight: "2px solid #3f4850",
-      }}
-    >
-      <div
-        className="absolute right-0 top-1/2 h-0.5 w-4 lg:w-6"
-        style={{ background: "#3f4850" }}
-      />
-    </div>
-  );
-}
-
-function ChampionArrow() {
-  return (
-    <div aria-hidden className="flex items-center">
-      <span className="font-display text-2xl text-primary lg:text-headline-md">
-        →
-      </span>
-    </div>
-  );
-}
-
-function MatchCard({
+function FinalCard({
   teams,
   match,
   label,
@@ -332,7 +324,7 @@ function MatchCard({
   const setList = match.set_history.map((s) => `${s.a}-${s.b}`).join(", ");
   return (
     <div
-      className={`min-w-[200px] border-2 transition-all ${
+      className={`border-2 ${
         highlight
           ? "border-primary bg-deep-void shadow-hard-sm"
           : "border-outline-variant bg-surface-container-high"
@@ -340,32 +332,17 @@ function MatchCard({
     >
       <div className="flex items-center justify-between border-b-2 border-outline-variant px-3 py-1.5">
         <p className="label-caps text-on-surface-variant">{label}</p>
-        {match.best_of === 3 && (
-          <span className="label-caps border-2 border-tertiary/60 px-1.5 py-0 text-[10px] text-tertiary">
-            BO3
-          </span>
-        )}
       </div>
       <ul className="divide-y-2 divide-outline-variant">
-        <TeamLine
-          name={teamA}
-          sets={match.sets_a}
-          current={done ? null : match.current_a}
-          winner={aWin}
-        />
-        <TeamLine
-          name={teamB}
-          sets={match.sets_b}
-          current={done ? null : match.current_b}
-          winner={bWin}
-        />
+        <TeamLine name={teamA} sets={match.sets_a} winner={aWin} />
+        <TeamLine name={teamB} sets={match.sets_b} winner={bWin} />
       </ul>
       {done && setList && (
         <p className="border-t-2 border-outline-variant bg-surface-container px-3 py-1 font-mono text-[11px] tabular-nums text-on-surface-variant">
           {setList}
         </p>
       )}
-      {!done && match.status === "scheduled" && (
+      {match.status === "scheduled" && (
         <p className="border-t-2 border-outline-variant bg-surface-container px-3 py-1 label-caps text-tertiary">
           {t("matchScheduled")}
         </p>
@@ -383,12 +360,10 @@ function MatchCard({
 function TeamLine({
   name,
   sets,
-  current,
   winner,
 }: {
   name: string;
   sets: number;
-  current: number | null;
   winner: boolean;
 }) {
   return (
@@ -404,17 +379,12 @@ function TeamLine({
       >
         {name}
       </span>
-      <span className="flex shrink-0 items-baseline gap-2 font-mono tabular-nums">
-        <span
-          className={`text-headline-sm ${
-            winner ? "text-primary" : "text-on-surface-variant"
-          }`}
-        >
-          {sets}
-        </span>
-        {current != null && (
-          <span className="text-on-surface-variant text-body-sm">· {current}</span>
-        )}
+      <span
+        className={`shrink-0 font-mono tabular-nums text-headline-sm ${
+          winner ? "text-primary" : "text-on-surface-variant"
+        }`}
+      >
+        {sets}
       </span>
     </li>
   );
@@ -422,72 +392,10 @@ function TeamLine({
 
 function PlaceholderCard({ label }: { label: string }) {
   return (
-    <div className="min-w-[200px] border-2 border-dashed border-outline-variant bg-surface-container/40 px-3 py-3">
+    <div className="border-2 border-dashed border-outline-variant bg-surface-container/40 px-3 py-3">
       <p className="label-caps text-on-surface-variant">{label}</p>
-      <p className="mt-2 font-display uppercase text-on-surface-variant/60">
-        TBD
-      </p>
+      <p className="mt-2 font-display uppercase text-on-surface-variant/60">TBD</p>
     </div>
   );
 }
 
-function ChampionCard({
-  teams,
-  match,
-}: {
-  teams: Team[];
-  match: Match | undefined;
-}) {
-  const t = useT();
-  if (!match || match.status !== "done") {
-    return (
-      <div className="min-w-[160px] border-2 border-dashed border-tertiary/40 bg-deep-void px-4 py-6 text-center">
-        <p className="label-caps text-tertiary">{t("winner")}</p>
-        <p className="mt-2 font-display text-headline-md uppercase text-on-surface-variant/60">
-          🏆
-        </p>
-      </div>
-    );
-  }
-  const champId =
-    match.sets_a > match.sets_b ? match.team_a_id : match.team_b_id;
-  return (
-    <div className="min-w-[180px] border-2 border-tertiary bg-deep-void px-4 py-5 text-center shadow-hard-tertiary">
-      <p className="label-caps text-tertiary">{t("winner")}</p>
-      <p className="mt-2 font-display text-headline-md uppercase leading-none text-stadium-white sm:text-headline-lg">
-        {teamName(teams, champId)}
-      </p>
-      <p className="mt-2 text-2xl">🏆</p>
-    </div>
-  );
-}
-
-function ThirdCard({
-  teams,
-  match,
-}: {
-  teams: Team[];
-  match: Match | undefined;
-}) {
-  const t = useT();
-  if (!match || match.status !== "done") {
-    return (
-      <div className="min-w-[160px] border-2 border-dashed border-secondary/40 bg-deep-void px-4 py-4 text-center">
-        <p className="label-caps text-secondary">{t("third")}</p>
-        <p className="mt-2 font-display text-headline-sm uppercase text-on-surface-variant/60">
-          TBD
-        </p>
-      </div>
-    );
-  }
-  const winId =
-    match.sets_a > match.sets_b ? match.team_a_id : match.team_b_id;
-  return (
-    <div className="min-w-[160px] border-2 border-secondary bg-deep-void px-4 py-4 text-center">
-      <p className="label-caps text-secondary">{t("third")}</p>
-      <p className="mt-2 font-display text-headline-sm uppercase leading-none text-stadium-white sm:text-headline-md">
-        {teamName(teams, winId)}
-      </p>
-    </div>
-  );
-}
