@@ -10,10 +10,11 @@ const LEAD_IN_MS = 5000; // whistle, then 5s get-ready before the clock runs
 // Markers we fire exactly once per run.
 type Marker = "start" | "half" | "twomin" | "end";
 
-/* ------------------------------------------------ Announcement clips (Web Audio) */
-// Decode all clips into AudioBuffers up front and play them via the Web Audio
-// API. Only the AudioContext needs a one-time unlock (silent buffer) inside a
-// user gesture -- so there is NO audible "priming" burst on first Start.
+/* ------------------------------------------------ Announcement clips */
+// One shared <audio> element whose `src` is swapped per clip. It gets unlocked
+// by the very first gesture play (the Start whistle). Only ONE element is ever
+// played, so there is no audible multi-clip "priming" burst, and it is the most
+// reliable approach on iOS Safari. Cues never overlap (they play one at a time).
 
 const CLIP_URLS = {
   whistle: "/audio/whistle.wav",
@@ -29,66 +30,33 @@ const CLIP_URLS = {
 } as const;
 type ClipKey = keyof typeof CLIP_URLS;
 
-let audioCtx: AudioContext | null = null;
-const buffers: Partial<Record<ClipKey, AudioBuffer>> = {};
-let loadStarted = false;
+let sharedAudio: HTMLAudioElement | null = null;
 
-function getCtx(): AudioContext | null {
+function getAudio(): HTMLAudioElement | null {
   if (typeof window === "undefined") return null;
-  const AC =
-    window.AudioContext ||
-    (window as unknown as { webkitAudioContext?: typeof AudioContext })
-      .webkitAudioContext;
-  if (!AC) return null;
-  if (!audioCtx) audioCtx = new AC();
-  return audioCtx;
-}
-
-// Fetch + decode every clip once (works while the context is still suspended).
-function loadAllClips() {
-  const ctx = getCtx();
-  if (!ctx || loadStarted) return;
-  loadStarted = true;
-  (Object.keys(CLIP_URLS) as ClipKey[]).forEach(async (k) => {
-    try {
-      const res = await fetch(CLIP_URLS[k]);
-      const arr = await res.arrayBuffer();
-      buffers[k] = await ctx.decodeAudioData(arr);
-    } catch {
-      /* ignore -- clip stays unavailable, playback is a no-op */
-    }
-  });
-}
-
-// One-time unlock inside a user gesture.
-function unlockCtx() {
-  const ctx = getCtx();
-  if (!ctx) return;
-  if (ctx.state === "suspended") void ctx.resume();
-  try {
-    const b = ctx.createBuffer(1, 1, 22050);
-    const s = ctx.createBufferSource();
-    s.buffer = b;
-    s.connect(ctx.destination);
-    s.start(0);
-  } catch {
-    /* ignore */
+  if (!sharedAudio) {
+    sharedAudio = new Audio();
+    sharedAudio.preload = "auto";
   }
+  return sharedAudio;
 }
 
 function playClip(key: ClipKey, onended?: () => void) {
-  const ctx = getCtx();
-  const buf = buffers[key];
-  if (!ctx || !buf) {
-    if (onended) onended();
+  const a = getAudio();
+  if (!a) {
+    onended?.();
     return;
   }
-  if (ctx.state === "suspended") void ctx.resume();
-  const src = ctx.createBufferSource();
-  src.buffer = buf;
-  src.connect(ctx.destination);
-  if (onended) src.onended = onended;
-  src.start(0);
+  a.onended = onended ?? null;
+  try {
+    a.src = CLIP_URLS[key];
+    a.currentTime = 0;
+  } catch {
+    /* ignore */
+  }
+  void a.play().catch(() => {
+    onended?.();
+  });
 }
 
 // Random one of the three end announcements.
@@ -110,7 +78,7 @@ function playEndSequence(withSpruch: boolean) {
     playEndClip();
   };
   playClip("whistle", go);
-  // Fallback in case onended does not fire (e.g. whistle buffer missing).
+  // Fallback in case the 'ended' event does not fire.
   window.setTimeout(go, 3500);
 }
 
@@ -173,11 +141,6 @@ export default function AnnouncerTimer() {
       endAnnounceOn ? "on" : "off",
     );
   }, [endAnnounceOn]);
-
-  // Decode all announcement clips up front (fetch/decode needs no gesture).
-  useEffect(() => {
-    loadAllClips();
-  }, []);
 
   const cue = useCallback((fn: () => void) => {
     if (soundRef.current) fn();
@@ -249,9 +212,6 @@ export default function AnnouncerTimer() {
   }, [running, cue]);
 
   function handleStart() {
-    // Unlock the audio context once inside the tap handler (no audible priming).
-    unlockCtx();
-
     const total = minutes * 60;
     totalSecRef.current = total;
     firedRef.current = new Set<Marker>(["start"]);
