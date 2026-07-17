@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { TOURNAMENT } from "../lib/tournament";
 import { useT } from "../lib/i18n";
 import PadelRacketsArt from "./PadelRacketsArt";
 
-// Tournament starts at 16:00 local Munich time. We bake CEST (UTC+2) into the target.
-const TARGET_MS = new Date(`${TOURNAMENT.dateISO}T${TOURNAMENT.startTime}:00+02:00`).getTime();
-const ESTIMATED_END_MS = TARGET_MS + TOURNAMENT.durationHours * 60 * 60 * 1000;
+// Tournament start baked to CEST (UTC+2). Date/time can be overridden via settings.
+function computeTargets(dateISO: string, startTime: string) {
+  const target = new Date(`${dateISO}T${startTime}:00+02:00`).getTime();
+  return { target, end: target + TOURNAMENT.durationHours * 60 * 60 * 1000 };
+}
 
 type Parts = { d: number; h: number; m: number; s: number };
 
@@ -19,9 +21,16 @@ function partsFromDiff(ms: number): Parts {
   };
 }
 
-export default function Countdown() {
+export default function Countdown({
+  dateISO = TOURNAMENT.dateISO,
+  startTime = TOURNAMENT.startTime,
+}: { dateISO?: string; startTime?: string } = {}) {
   const t = useT();
   const [now, setNow] = useState(() => Date.now());
+  const { target: TARGET_MS, end: ESTIMATED_END_MS } = useMemo(
+    () => computeTargets(dateISO, startTime),
+    [dateISO, startTime],
+  );
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);

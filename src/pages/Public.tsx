@@ -24,6 +24,9 @@ export default function Public() {
   const registrationOpen = settings?.registration_open ?? null;
   const phase = settings?.tournament_phase ?? "registration";
   const publicLive = settings?.public_live ?? false;
+  // Event date/time: settings override the hardcoded constant when set.
+  const eventDateISO = settings?.event_date || TOURNAMENT.dateISO;
+  const eventStartTime = settings?.start_time || TOURNAMENT.startTime;
 
   // Belt-and-suspenders: never leak demo/test data to the public page.
   const teams = useMemo(
@@ -50,11 +53,19 @@ export default function Public() {
       <TopNav />
 
       <main className="pt-16 sm:pt-24">
-        <Hero registrationOpen={registrationOpen} />
+        <Hero
+          registrationOpen={registrationOpen}
+          eventDateISO={eventDateISO}
+          startTime={eventStartTime}
+        />
 
         <Marquee text={t("marqueeBanner1")} />
 
-        <BentoStats teamCount={activeCount} />
+        <BentoStats
+          teamCount={activeCount}
+          eventDateISO={eventDateISO}
+          startTime={eventStartTime}
+        />
 
         <RegistrationSection
           registrationOpen={registrationOpen}
@@ -163,7 +174,15 @@ function NavLink({ href, children }: { href: string; children: ReactNode }) {
 
 /* ------------------------------ HERO ------------------------------ */
 
-function Hero({ registrationOpen }: { registrationOpen: boolean | null }) {
+function Hero({
+  registrationOpen,
+  eventDateISO,
+  startTime,
+}: {
+  registrationOpen: boolean | null;
+  eventDateISO: string;
+  startTime: string;
+}) {
   const t = useT();
   const { lang } = useLang();
   const headRef = useRef<HTMLHeadingElement>(null);
@@ -288,8 +307,8 @@ function Hero({ registrationOpen }: { registrationOpen: boolean | null }) {
                 Hillsong Padel Cup
               </h2>
               <p className="font-body text-body-sm text-on-surface-variant sm:text-body-lg">
-                {formatEventDate(TOURNAMENT.dateISO, lang)} ·{" "}
-                {TOURNAMENT.startTime} · {TOURNAMENT.venue.name}
+                {formatEventDate(eventDateISO, lang)} ·{" "}
+                {startTime} · {TOURNAMENT.venue.name}
               </p>
             </div>
           </div>
@@ -301,7 +320,15 @@ function Hero({ registrationOpen }: { registrationOpen: boolean | null }) {
 
 /* ------------------------------ BENTO STATS ------------------------------ */
 
-function BentoStats({ teamCount }: { teamCount: number }) {
+function BentoStats({
+  teamCount,
+  eventDateISO,
+  startTime,
+}: {
+  teamCount: number;
+  eventDateISO: string;
+  startTime: string;
+}) {
   const t = useT();
   return (
     <section className="mx-auto w-full max-w-[1440px] px-5 py-20 sm:px-12 sm:py-28">
@@ -330,12 +357,12 @@ function BentoStats({ teamCount }: { teamCount: number }) {
           </div>
         </Reveal>
 
-        <Countdown />
+        <Countdown dateISO={eventDateISO} startTime={startTime} />
 
         <StatTile
           icon="schedule"
           accent="text-primary"
-          headline={TOURNAMENT.startTime}
+          headline={startTime}
           label={t("bentoStatStart")}
         />
         <StatTile

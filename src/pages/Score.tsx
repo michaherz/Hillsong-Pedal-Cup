@@ -175,6 +175,7 @@ function Admin({ onSignOut }: { onSignOut: () => void }) {
             teams={teams}
             matches={matches}
             phase={settings?.tournament_phase ?? "registration"}
+            showDivision={(settings?.tournament_mode ?? "box") === "box"}
           />
         </section>
 
@@ -567,10 +568,12 @@ function AdminTeamTable({
   teams,
   matches,
   phase,
+  showDivision,
 }: {
   teams: Team[] | null;
   matches: Match[] | null;
   phase: Settings["tournament_phase"];
+  showDivision: boolean;
 }) {
   const t = useT();
   if (teams === null) {
@@ -596,6 +599,7 @@ function AdminTeamTable({
           index={idx}
           phase={phase}
           matches={matches ?? []}
+          showDivision={showDivision}
         />
       ))}
     </ul>
@@ -607,11 +611,13 @@ function AdminTeamRow({
   index,
   phase,
   matches,
+  showDivision,
 }: {
   team: Team;
   index: number;
   phase: Settings["tournament_phase"];
   matches: Match[];
+  showDivision: boolean;
 }) {
   const t = useT();
   const [editing, setEditing] = useState(false);
@@ -776,32 +782,34 @@ function AdminTeamRow({
         <p className="truncate font-body text-body-sm text-on-surface-variant">
           {team.player_1} · {team.player_2} · {skillLabel[team.skill_level]}
         </p>
-        {/* Division control */}
-        <div className="mt-2 flex items-center gap-1">
-          <span className="label-caps mr-1 text-on-surface-variant">
-            {t("divisionLabel")}
-          </span>
-          {(
-            [
-              { key: null, label: t("divisionAuto") },
-              { key: "ober" as const, label: t("divisionOber") },
-              { key: "unter" as const, label: t("divisionUnter") },
-            ] as const
-          ).map((opt) => (
-            <button
-              key={String(opt.key)}
-              onClick={() => setDivision(opt.key)}
-              disabled={busy}
-              className={`label-caps border-2 px-2 py-0.5 text-[10px] transition-colors ${
-                team.division === opt.key
-                  ? "border-primary bg-primary text-on-primary-container"
-                  : "border-outline-variant text-on-surface-variant hover:border-primary"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+        {/* Division control (Box-Liga only) */}
+        {showDivision && (
+          <div className="mt-2 flex items-center gap-1">
+            <span className="label-caps mr-1 text-on-surface-variant">
+              {t("divisionLabel")}
+            </span>
+            {(
+              [
+                { key: null, label: t("divisionAuto") },
+                { key: "ober" as const, label: t("divisionOber") },
+                { key: "unter" as const, label: t("divisionUnter") },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={String(opt.key)}
+                onClick={() => setDivision(opt.key)}
+                disabled={busy}
+                className={`label-caps border-2 px-2 py-0.5 text-[10px] transition-colors ${
+                  team.division === opt.key
+                    ? "border-primary bg-primary text-on-primary-container"
+                    : "border-outline-variant text-on-surface-variant hover:border-primary"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
         <button
@@ -902,7 +910,7 @@ function TournamentConfigCard({ settings }: { settings: Settings }) {
           <input
             type="date"
             className="input"
-            defaultValue={settings.event_date ?? ""}
+            defaultValue={settings.event_date ?? TOURNAMENT.dateISO}
             disabled={busy}
             onBlur={(e) => update({ event_date: e.target.value || null })}
           />
@@ -914,7 +922,7 @@ function TournamentConfigCard({ settings }: { settings: Settings }) {
           <input
             type="time"
             className="input"
-            defaultValue={settings.start_time ?? ""}
+            defaultValue={settings.start_time ?? TOURNAMENT.startTime}
             disabled={busy}
             onBlur={(e) => update({ start_time: e.target.value || null })}
           />
