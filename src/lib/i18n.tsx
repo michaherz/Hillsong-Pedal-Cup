@@ -365,6 +365,13 @@ const STRINGS = {
     timerMinutesSet: "{min} Minuten eingestellt",
     timerPreset: "{min} Min",
     timerTimeUp: "ZEIT",
+    timerEndAnnOn: "End-Ansage: an",
+    timerEndAnnOff: "End-Ansage: aus (nur Pfiff)",
+    timerAnnHeading: "Ansagen:",
+    timerAnn1: "Ansage 1",
+    timerAnn2: "Ansage 2",
+    timerAnn3: "Ansage 3",
+    timerAnn4: "Ansage 4",
     timerIosHint:
       "Der erste Tipp auf Start aktiviert den Ton auf diesem Geraet (iOS).",
     // generic
@@ -713,6 +720,13 @@ const STRINGS = {
     timerMinutesSet: "{min} minutes set",
     timerPreset: "{min} min",
     timerTimeUp: "TIME",
+    timerEndAnnOn: "End call: on",
+    timerEndAnnOff: "End call: off (whistle only)",
+    timerAnnHeading: "Calls:",
+    timerAnn1: "Call 1",
+    timerAnn2: "Call 2",
+    timerAnn3: "Call 3",
+    timerAnn4: "Call 4",
     timerIosHint:
       "The first tap on Start enables sound on this device (iOS).",
     loadingShort: "Loading…",

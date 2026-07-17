@@ -9,66 +9,95 @@ const PRESETS = [10, 12, 14, 15] as const;
 // Markers we fire exactly once per run.
 type Marker = "start" | "half" | "twomin" | "end";
 
-/* ---------------------------------------------------------- Web Audio helper */
+/* ------------------------------------------------ MP3 announcement clips */
 
-let audioCtx: AudioContext | null = null;
+const CLIP_URLS = {
+  whistle: "/audio/whistle.wav",
+  halftime: "/audio/halftime.mp3",
+  twomin: "/audio/twominutes.mp3",
+  end1: "/audio/end1.mp3",
+  end2: "/audio/end2.mp3",
+  end3: "/audio/end3.mp3",
+  announce1: "/audio/announce1.mp3",
+  announce2: "/audio/announce2.mp3",
+  announce3: "/audio/announce3.mp3",
+  announce4: "/audio/announce4.mp3",
+} as const;
+type ClipKey = keyof typeof CLIP_URLS;
 
-function getAudioContext(): AudioContext | null {
+const clipEls: Partial<Record<ClipKey, HTMLAudioElement>> = {};
+
+function getClip(key: ClipKey): HTMLAudioElement | null {
   if (typeof window === "undefined") return null;
-  const AC =
-    window.AudioContext ||
-    (window as unknown as { webkitAudioContext?: typeof AudioContext })
-      .webkitAudioContext;
-  if (!AC) return null;
-  if (!audioCtx) audioCtx = new AC();
-  return audioCtx;
+  if (!clipEls[key]) {
+    const a = new Audio(CLIP_URLS[key]);
+    a.preload = "auto";
+    clipEls[key] = a;
+  }
+  return clipEls[key] ?? null;
 }
 
-// Two short ~880Hz beeps.
-function playStartTone() {
-  const ctx = getAudioContext();
-  if (!ctx) return;
-  const now = ctx.currentTime;
-  [0, 0.28].forEach((offset) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "square";
-    osc.frequency.setValueAtTime(880, now + offset);
-    gain.gain.setValueAtTime(0.0001, now + offset);
-    gain.gain.exponentialRampToValueAtTime(0.35, now + offset + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.2);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(now + offset);
-    osc.stop(now + offset + 0.22);
+// Prime clips inside a user gesture so iOS lets them play later.
+// (Skip the whistle -- it gets unlocked by actually playing at Start.)
+function primeClips() {
+  (Object.keys(CLIP_URLS) as ClipKey[]).forEach((k) => {
+    if (k === "whistle") return;
+    const a = getClip(k);
+    if (!a) return;
+    a.muted = true;
+    a.play()
+      .then(() => {
+        a.pause();
+        a.currentTime = 0;
+        a.muted = false;
+      })
+      .catch(() => {
+        a.muted = false;
+      });
   });
 }
 
-// Longer, lower horn: 440Hz sliding down to 220Hz.
-function playEndTone() {
-  const ctx = getAudioContext();
-  if (!ctx) return;
-  const now = ctx.currentTime;
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = "sawtooth";
-  osc.frequency.setValueAtTime(440, now);
-  osc.frequency.linearRampToValueAtTime(220, now + 1.4);
-  gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime(0.4, now + 0.05);
-  gain.gain.setValueAtTime(0.4, now + 1.1);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.6);
-  osc.connect(gain).connect(ctx.destination);
-  osc.start(now);
-  osc.stop(now + 1.65);
+function playClip(key: ClipKey) {
+  const a = getClip(key);
+  if (!a) return;
+  try {
+    a.currentTime = 0;
+  } catch {
+    /* ignore */
+  }
+  a.muted = false;
+  void a.play().catch(() => {});
 }
 
-function speak(text: string) {
-  if (typeof window === "undefined") return;
-  if (!("speechSynthesis" in window)) return;
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = "de-DE";
-  u.rate = 0.95;
-  window.speechSynthesis.speak(u);
+// Random one of the three end announcements.
+function playEndClip() {
+  const keys: ClipKey[] = ["end1", "end2", "end3"];
+  playClip(keys[Math.floor(Math.random() * keys.length)]);
+}
+
+// End: always the whistle; then the spruch only if withSpruch is true.
+function playEndSequence(withSpruch: boolean) {
+  const w = getClip("whistle");
+  if (!w) {
+    if (withSpruch) playEndClip();
+    return;
+  }
+  let done = false;
+  const go = () => {
+    if (done || !withSpruch) return;
+    done = true;
+    playEndClip();
+  };
+  w.onended = go;
+  try {
+    w.currentTime = 0;
+  } catch {
+    /* ignore */
+  }
+  w.muted = false;
+  w.play().catch(go);
+  // Fallback in case the 'ended' event does not fire.
+  if (withSpruch) window.setTimeout(go, 3500);
 }
 
 function fmt(totalSeconds: number): string {
@@ -93,12 +122,20 @@ export default function AnnouncerTimer() {
     if (typeof window === "undefined") return true;
     return window.localStorage.getItem(SOUND_KEY) !== "off";
   });
+  // End announcement (spruch) can be turned off separately -> then only the
+  // whistle sounds at the end. Halftime + 2-min are unaffected by this.
+  const [endAnnounceOn, setEndAnnounceOn] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem("padel-cup-timer-endann") !== "off";
+  });
 
   const startAtRef = useRef<number | null>(null);
   const totalSecRef = useRef(14 * 60);
   const firedRef = useRef<Set<Marker>>(new Set());
   const soundRef = useRef(soundOn);
   soundRef.current = soundOn;
+  const endAnnRef = useRef(endAnnounceOn);
+  endAnnRef.current = endAnnounceOn;
 
   // Adopt settings.match_minutes as the default until the user edits it.
   useEffect(() => {
@@ -114,6 +151,13 @@ export default function AnnouncerTimer() {
   useEffect(() => {
     window.localStorage.setItem(SOUND_KEY, soundOn ? "on" : "off");
   }, [soundOn]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      "padel-cup-timer-endann",
+      endAnnounceOn ? "on" : "off",
+    );
+  }, [endAnnounceOn]);
 
   const cue = useCallback((fn: () => void) => {
     if (soundRef.current) fn();
@@ -154,20 +198,17 @@ export default function AnnouncerTimer() {
       // Halftime.
       if (!fired.has("half") && elapsed >= total / 2 && rem > 1) {
         fired.add("half");
-        cue(() => speak("Halbzeit"));
+        cue(() => playClip("halftime"));
       }
       // Two minutes remaining (only meaningful if match is longer than 2 min).
       if (!fired.has("twomin") && total > 120 && rem <= 120 && rem > 1) {
         fired.add("twomin");
-        cue(() => speak("Noch zwei Minuten"));
+        cue(() => playClip("twomin"));
       }
-      // End.
+      // End: whistle always; spruch only if the end-announcement toggle is on.
       if (!fired.has("end") && rem <= 0) {
         fired.add("end");
-        cue(() => {
-          playEndTone();
-          speak("Zeit");
-        });
+        cue(() => playEndSequence(endAnnRef.current));
         setRunning(false);
         setFinished(true);
         setRemaining(0);
@@ -180,16 +221,8 @@ export default function AnnouncerTimer() {
   }, [running, cue]);
 
   function handleStart() {
-    // Unlock iOS audio INSIDE the tap handler.
-    const ctx = getAudioContext();
-    if (ctx && ctx.state === "suspended") void ctx.resume();
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      // Prime the speech engine with a near-silent utterance.
-      const prime = new SpeechSynthesisUtterance(" ");
-      prime.lang = "de-DE";
-      prime.volume = 0;
-      window.speechSynthesis.speak(prime);
-    }
+    // Prime mp3 clips inside the tap handler so iOS lets them play later.
+    primeClips();
 
     const total = minutes * 60;
     totalSecRef.current = total;
@@ -198,7 +231,7 @@ export default function AnnouncerTimer() {
     setRemaining(total);
     setFinished(false);
     setRunning(true);
-    cue(() => playStartTone());
+    cue(() => playClip("whistle")); // whistle at the start
   }
 
   function handleReset() {
@@ -226,16 +259,28 @@ export default function AnnouncerTimer() {
             {t("timerScreenTitle")}
           </h1>
         </div>
-        <button
-          onClick={() => setSoundOn((v) => !v)}
-          className={`label-caps inline-flex items-center gap-2 border-2 px-3 py-1.5 transition-colors ${
-            soundOn
-              ? "border-secondary text-secondary hover:bg-secondary hover:text-deep-void"
-              : "border-tertiary text-tertiary hover:bg-tertiary hover:text-deep-void"
-          }`}
-        >
-          {soundOn ? t("timerSoundOn") : t("timerSoundOff")}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setSoundOn((v) => !v)}
+            className={`label-caps inline-flex items-center gap-2 border-2 px-3 py-1.5 transition-colors ${
+              soundOn
+                ? "border-secondary text-secondary hover:bg-secondary hover:text-deep-void"
+                : "border-tertiary text-tertiary hover:bg-tertiary hover:text-deep-void"
+            }`}
+          >
+            {soundOn ? t("timerSoundOn") : t("timerSoundOff")}
+          </button>
+          <button
+            onClick={() => setEndAnnounceOn((v) => !v)}
+            className={`label-caps inline-flex items-center gap-2 border-2 px-3 py-1.5 transition-colors ${
+              endAnnounceOn
+                ? "border-primary text-primary hover:bg-primary hover:text-on-primary-container"
+                : "border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary"
+            }`}
+          >
+            {endAnnounceOn ? t("timerEndAnnOn") : t("timerEndAnnOff")}
+          </button>
+        </div>
       </header>
 
       {/* Countdown */}
@@ -320,6 +365,29 @@ export default function AnnouncerTimer() {
           <button onClick={handleReset} className="btn-ghost">
             {t("timerRestartBtn")}
           </button>
+        </div>
+
+        {/* Manual announcement buttons */}
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <span className="label-caps mr-1 text-on-surface-variant">
+            {t("timerAnnHeading")}
+          </span>
+          {(
+            [
+              { key: "announce1" as const, label: t("timerAnn1") },
+              { key: "announce2" as const, label: t("timerAnn2") },
+              { key: "announce3" as const, label: t("timerAnn3") },
+              { key: "announce4" as const, label: t("timerAnn4") },
+            ]
+          ).map((a) => (
+            <button
+              key={a.key}
+              onClick={() => playClip(a.key)}
+              className="label-caps border-2 border-secondary px-4 py-2 text-secondary transition-colors hover:bg-secondary hover:text-deep-void"
+            >
+              {a.label}
+            </button>
+          ))}
         </div>
         <p className="max-w-lg text-center font-mono text-[10px] uppercase tracking-[0.12em] text-on-surface-variant">
           {t("timerIosHint")}
