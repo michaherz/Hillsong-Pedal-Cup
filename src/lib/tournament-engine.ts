@@ -13,6 +13,7 @@ export type Standing = {
   played: number;
   wins: number;
   losses: number;
+  draws: number;
   gamesFor: number;
   gamesAgainst: number;
   gamesDiff: number;
@@ -258,6 +259,7 @@ function emptyStanding(teamId: string): Standing {
     played: 0,
     wins: 0,
     losses: 0,
+    draws: 0,
     gamesFor: 0,
     gamesAgainst: 0,
     gamesDiff: 0,
@@ -328,6 +330,13 @@ function accumulate(
       b.wins++;
       a.losses++;
       b.points += 3;
+    } else {
+      // Level on sets AND games -> draw (only possible in timed group rounds).
+      // 1 point each; neither counts as a win or a loss.
+      a.draws++;
+      b.draws++;
+      a.points += 1;
+      b.points += 1;
     }
   }
 }
@@ -375,6 +384,7 @@ export function computeDivisionStandings(
     s.played = 0;
     s.wins = 0;
     s.losses = 0;
+    s.draws = 0;
     s.gamesFor = 0;
     s.gamesAgainst = 0;
     s.points = 0;

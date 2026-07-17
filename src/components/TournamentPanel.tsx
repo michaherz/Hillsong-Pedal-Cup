@@ -370,6 +370,8 @@ function BoxTournamentPanel({ teams, matches, settings }: Props) {
           match={scoringMatch}
           teams={teams}
           setRule={setRule}
+          scoringMode={settings.scoring_mode ?? "sets"}
+          matchMinutes={settings.match_minutes ?? 15}
           onClose={() => setScoringMatchId(null)}
         />
       )}
@@ -771,6 +773,8 @@ function SwissTournamentPanel({ teams, matches, settings }: Props) {
           match={scoringMatch}
           teams={teams}
           setRule={setRule}
+          scoringMode={settings.scoring_mode ?? "sets"}
+          matchMinutes={settings.match_minutes ?? 15}
           onClose={() => setScoringMatchId(null)}
         />
       )}

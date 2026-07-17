@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Match, SetScore, Team } from "../lib/database.types";
+import type { Match, ScoringMode, SetScore, Team } from "../lib/database.types";
 import { useT } from "../lib/i18n";
+import { supabase } from "../lib/supabase";
 import { DEFAULT_SET_RULE, type SetRule } from "../lib/tournament-engine";
 import {
   applyScoringUpdate,
   buildFinalScore,
   bumpGame,
+  bumpGameTimed,
+  finalizeTimedMatch,
   resetScoring,
+  startMatchTimer,
   formatScoreLine,
 } from "../lib/scoring";
 
@@ -14,6 +18,8 @@ type Props = {
   match: Match;
   teams: Team[];
   setRule?: SetRule;
+  scoringMode?: ScoringMode;
+  matchMinutes?: number;
   onClose: () => void;
 };
 
@@ -23,6 +29,8 @@ export default function LiveScoringModal({
   match,
   teams,
   setRule = DEFAULT_SET_RULE,
+  scoringMode = "sets",
+  matchMinutes = 15,
   onClose,
 }: Props) {
   const t = useT();
@@ -31,6 +39,8 @@ export default function LiveScoringModal({
   const [mode, setMode] = useState<Mode>("live");
   // Guard: reopening a DONE match can corrupt already-seeded finals/standings.
   const [reopened, setReopened] = useState(false);
+
+  const timed = scoringMode === "timed";
 
   function confirmReopen() {
     if (confirm(t("reopenWarning"))) {
@@ -70,7 +80,9 @@ export default function LiveScoringModal({
     if (busy || match.status === "done") return;
     setBusy(true);
     setError(null);
-    const update = bumpGame(match, side, delta, setRule);
+    const update = timed
+      ? bumpGameTimed(match, side, delta)
+      : bumpGame(match, side, delta, setRule);
     const { error: e } = await applyScoringUpdate(match.id, update);
     setBusy(false);
     if (e) setError(e);
@@ -81,6 +93,38 @@ export default function LiveScoringModal({
     setBusy(true);
     setError(null);
     const { error: e } = await applyScoringUpdate(match.id, resetScoring());
+    // In timed mode also clear the synced clock so it stops ticking.
+    if (!e && timed) {
+      await supabase
+        .from("matches")
+        .update({ timer_started_at: null })
+        .eq("id", match.id);
+    }
+    setBusy(false);
+    if (e) setError(e);
+  }
+
+  /* -------------------------------------------------- Timer (timed mode) */
+  async function startTimer() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const { error: e } = await startMatchTimer(match.id);
+    setBusy(false);
+    if (e) setError(e);
+  }
+
+  async function finalizeTimed() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const { update, error: valErr, errorKey } = finalizeTimedMatch(match);
+    if (valErr || !update) {
+      setError(errorKey ? t(errorKey as never) : valErr);
+      setBusy(false);
+      return;
+    }
+    const { error: e } = await applyScoringUpdate(match.id, update);
     setBusy(false);
     if (e) setError(e);
   }
@@ -153,8 +197,19 @@ export default function LiveScoringModal({
           </div>
         )}
 
-        {/* Mode tabs */}
-        {(match.status !== "done" || reopened) && (
+        {/* Timer (timed mode only) */}
+        {timed && (match.status !== "done" || reopened) && (
+          <MatchTimer
+            startedAt={match.timer_started_at}
+            matchMinutes={matchMinutes}
+            busy={busy}
+            onStart={startTimer}
+            onFinalize={finalizeTimed}
+          />
+        )}
+
+        {/* Mode tabs (sets mode only; timed mode has no set-based final form) */}
+        {!timed && (match.status !== "done" || reopened) && (
           <div className="grid grid-cols-2 border-b-2 border-outline-variant">
             <ModeTab
               active={mode === "live"}
@@ -177,7 +232,7 @@ export default function LiveScoringModal({
           </div>
         )}
 
-        {mode === "live" || (match.status === "done" && !reopened) ? (
+        {timed || mode === "live" || (match.status === "done" && !reopened) ? (
           <>
             {/* Score grid (live click-through) */}
             <div className="grid grid-cols-2 gap-px bg-outline-variant">
@@ -190,6 +245,7 @@ export default function LiveScoringModal({
                 opponentCurrent={match.current_b}
                 onBump={(d) => bump("a", d)}
                 disabled={busy || match.status === "done"}
+                hideSets={timed}
               />
               <ScoringPanel
                 side="B"
@@ -200,6 +256,7 @@ export default function LiveScoringModal({
                 opponentCurrent={match.current_a}
                 onBump={(d) => bump("b", d)}
                 disabled={busy || match.status === "done"}
+                hideSets={timed}
               />
             </div>
 
@@ -279,6 +336,7 @@ function ScoringPanel({
   opponentCurrent,
   onBump,
   disabled,
+  hideSets = false,
 }: {
   side: "A" | "B";
   teamName: string;
@@ -288,6 +346,7 @@ function ScoringPanel({
   opponentCurrent: number;
   onBump: (delta: 1 | -1) => void;
   disabled: boolean;
+  hideSets?: boolean;
 }) {
   const t = useT();
   // Highlight side that is currently leading the running set.
@@ -313,14 +372,16 @@ function ScoringPanel({
       </p>
 
       {/* Sets won */}
-      <div className="mt-4 flex items-baseline gap-2">
-        <span className="label-caps text-on-surface-variant">
-          {t("setsWon")}
-        </span>
-        <span className="font-display text-headline-md tabular-nums text-secondary">
-          {sets}
-        </span>
-      </div>
+      {!hideSets && (
+        <div className="mt-4 flex items-baseline gap-2">
+          <span className="label-caps text-on-surface-variant">
+            {t("setsWon")}
+          </span>
+          <span className="font-display text-headline-md tabular-nums text-secondary">
+            {sets}
+          </span>
+        </div>
+      )}
 
       {/* Big game counter */}
       <div className="mt-2 flex items-center justify-center">
@@ -350,6 +411,103 @@ function ScoringPanel({
         >
           +1
         </button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------- Match timer */
+
+/**
+ * Synced countdown for timed mode. Remaining time is computed purely from the
+ * DB-stored start timestamp + match length, so every device (scorer + beamer)
+ * shows the same clock. Ticks locally every 1s just to re-render.
+ */
+function MatchTimer({
+  startedAt,
+  matchMinutes,
+  busy,
+  onStart,
+  onFinalize,
+}: {
+  startedAt: string | null;
+  matchMinutes: number;
+  busy: boolean;
+  onStart: () => void;
+  onFinalize: () => void;
+}) {
+  const t = useT();
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!startedAt) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [startedAt]);
+
+  // Not started yet -> show start button.
+  if (!startedAt) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-primary/40 bg-deep-void px-5 py-4">
+        <div>
+          <p className="label-caps text-primary">{t("timerHeading")}</p>
+          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-on-surface-variant">
+            {t("timerLengthLabel", { min: matchMinutes })}
+          </p>
+        </div>
+        <button onClick={onStart} disabled={busy} className="btn-sm">
+          {busy ? "…" : t("timerStart")}
+        </button>
+      </div>
+    );
+  }
+
+  const totalMs = matchMinutes * 60_000;
+  const elapsed = now - new Date(startedAt).getTime();
+  const remainingMs = Math.max(0, totalMs - elapsed);
+  const buzzer = remainingMs <= 0;
+  const totalSec = Math.ceil(remainingMs / 1000);
+  const mm = Math.floor(totalSec / 60);
+  const ss = totalSec % 60;
+  const clock = `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+
+  return (
+    <div
+      className={`border-b-2 px-5 py-4 ${
+        buzzer ? "border-error bg-error/10" : "border-primary/40 bg-deep-void"
+      }`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {buzzer && (
+            <span className="inline-block h-3 w-3 animate-pulse-glow rounded-full bg-error" />
+          )}
+          <div>
+            <p className={`label-caps ${buzzer ? "text-error" : "text-primary"}`}>
+              {buzzer ? t("timerUp") : t("timerHeading")}
+            </p>
+            <p
+              className={`font-display tabular-nums leading-none ${
+                buzzer ? "animate-pulse text-error" : "text-stadium-white"
+              }`}
+              style={{ fontSize: "clamp(40px, 9vw, 72px)" }}
+            >
+              {clock}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <button onClick={onFinalize} disabled={busy} className="btn-sm">
+            {busy ? "…" : buzzer ? t("timerFinalize") : t("timerFinishEarly")}
+          </button>
+          <button
+            onClick={onStart}
+            disabled={busy}
+            className="label-caps border-2 border-outline-variant px-3 py-1.5 text-on-surface-variant transition-colors hover:border-tertiary hover:text-tertiary disabled:opacity-40"
+          >
+            {t("timerRestart")}
+          </button>
+        </div>
       </div>
     </div>
   );

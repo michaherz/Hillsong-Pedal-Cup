@@ -133,6 +133,15 @@ function Admin({ onSignOut }: { onSignOut: () => void }) {
             >
               ▢ {t("printPosterSlide")}
             </a>
+            <a
+              href="/timer"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="label-caps inline-flex items-center gap-2 border-2 border-primary px-3 py-1.5 text-primary transition-colors hover:bg-primary hover:text-deep-void"
+              title={t("timerLinkHint")}
+            >
+              ⏱ {t("timerLink")}
+            </a>
             <button
               onClick={onSignOut}
               className="label-caps text-on-surface-variant transition-colors hover:text-primary"
@@ -313,8 +322,17 @@ function SetRuleCard({ settings }: { settings: Settings }) {
   const [busy, setBusy] = useState(false);
   const target = settings.set_target ?? 6;
   const twoLead = settings.set_two_game_lead ?? true;
+  const scoringMode = settings.scoring_mode ?? "sets";
+  const timed = scoringMode === "timed";
 
-  async function update(patch: Partial<Pick<Settings, "set_target" | "set_two_game_lead">>) {
+  async function update(
+    patch: Partial<
+      Pick<
+        Settings,
+        "set_target" | "set_two_game_lead" | "scoring_mode" | "match_minutes"
+      >
+    >,
+  ) {
     if (busy) return;
     setBusy(true);
     await supabase.from("settings").update(patch).eq("id", 1);
@@ -394,6 +412,72 @@ function SetRuleCard({ settings }: { settings: Settings }) {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Scoring mode: sets vs timed */}
+      <div className="mt-5 border-t-2 border-outline-variant pt-5">
+        <div className="flex items-baseline justify-between gap-3">
+          <div>
+            <p className="label-caps text-on-surface-variant">
+              {t("scoringModeHeading")}
+            </p>
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.12em] text-on-surface-variant">
+              {t("scoringModeHint")}
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          {(
+            [
+              { key: "sets" as const, label: t("scoringModeSets"), desc: t("scoringModeSetsDesc") },
+              { key: "timed" as const, label: t("scoringModeTimed"), desc: t("scoringModeTimedDesc") },
+            ]
+          ).map((opt) => {
+            const active = scoringMode === opt.key;
+            return (
+              <button
+                key={opt.key}
+                onClick={() => update({ scoring_mode: opt.key })}
+                disabled={busy}
+                className={`border-2 p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                  active
+                    ? "border-primary bg-primary/10"
+                    : "border-outline-variant hover:border-primary"
+                }`}
+              >
+                <span
+                  className={`block font-display text-headline-sm uppercase ${
+                    active ? "text-primary" : "text-stadium-white"
+                  }`}
+                >
+                  {opt.label}
+                </span>
+                <span className="mt-1 block font-body text-body-sm text-on-surface-variant">
+                  {opt.desc}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {timed && (
+          <div className="mt-4 max-w-xs">
+            <span className="label-caps mb-1 block text-on-surface-variant">
+              {t("matchMinutesLabel")}
+            </span>
+            <NumberField
+              label={t("matchMinutesUnit")}
+              value={settings.match_minutes ?? 15}
+              min={1}
+              max={90}
+              busy={busy}
+              onCommit={(v) => update({ match_minutes: v })}
+            />
+            <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.12em] text-tertiary">
+              {t("timedNote")}
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-3 border-t-2 border-outline-variant pt-4">

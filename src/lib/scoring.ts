@@ -81,6 +81,84 @@ export function bumpGame(
   };
 }
 
+/**
+ * Bump a single game up or down in TIMED mode. No set/match completion logic:
+ * the match runs until the buzzer, so games accumulate freely in current_a/b.
+ * The +1 only sets status to in_progress (a running timer already did that, but
+ * this keeps it safe if the timer was somehow skipped).
+ */
+export function bumpGameTimed(
+  match: Match,
+  side: "a" | "b",
+  delta: 1 | -1,
+): ScoringUpdate {
+  let currentA = match.current_a;
+  let currentB = match.current_b;
+  if (side === "a") currentA = Math.max(0, currentA + delta);
+  else currentB = Math.max(0, currentB + delta);
+
+  const status: Match["status"] =
+    match.status === "scheduled" ? "in_progress" : match.status;
+
+  return {
+    set_history: match.set_history,
+    current_a: currentA,
+    current_b: currentB,
+    sets_a: match.sets_a,
+    sets_b: match.sets_b,
+    score_a: currentA,
+    score_b: currentB,
+    status,
+    played_at: match.played_at,
+  };
+}
+
+/**
+ * Finalize a TIMED match at the buzzer with the current running score.
+ * - Group rounds (phase 'league' / 'mexicano'): a tie is a DRAW -> sets 0/0,
+ *   equal score; standings award 1 point each.
+ * - KO / final (phase 'knockout' / 'final'): NO draw allowed. Returns an error
+ *   if the score is level (caller must force a golden game until someone leads).
+ * Winner gets sets 1/0, loser 0/1. Score = current games. set_history stores
+ * a single pseudo-set {a,b} so existing display helpers keep working.
+ */
+export function finalizeTimedMatch(
+  match: Match,
+): { update: ScoringUpdate | null; error: string | null; errorKey?: string } {
+  const a = match.current_a;
+  const b = match.current_b;
+  const isKnockout = match.phase === "knockout" || match.phase === "final";
+
+  if (a === b && isKnockout) {
+    return {
+      update: null,
+      error: "Unentschieden im KO nicht erlaubt - Golden Game spielen.",
+      errorKey: "timedKoTieError",
+    };
+  }
+
+  let setsA = 0;
+  let setsB = 0;
+  if (a > b) setsA = 1;
+  else if (b > a) setsB = 1;
+  // a === b in a group round -> draw: sets stay 0/0.
+
+  return {
+    update: {
+      set_history: [{ a, b }],
+      current_a: a,
+      current_b: b,
+      sets_a: setsA,
+      sets_b: setsB,
+      score_a: a,
+      score_b: b,
+      status: "done",
+      played_at: new Date().toISOString(),
+    },
+    error: null,
+  };
+}
+
 /** Persist a ScoringUpdate to Supabase. */
 export async function applyScoringUpdate(
   matchId: string,
@@ -89,6 +167,24 @@ export async function applyScoringUpdate(
   const { error } = await supabase
     .from("matches")
     .update(update)
+    .eq("id", matchId);
+  return { error: error?.message ?? null };
+}
+
+/**
+ * Start (or restart) a timed match's synced countdown. Writes a fresh
+ * timer_started_at (server-agnostic ISO now) + flips status to in_progress.
+ * On restart we keep the current game score (only the clock resets).
+ */
+export async function startMatchTimer(
+  matchId: string,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from("matches")
+    .update({
+      timer_started_at: new Date().toISOString(),
+      status: "in_progress",
+    })
     .eq("id", matchId);
   return { error: error?.message ?? null };
 }

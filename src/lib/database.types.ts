@@ -48,11 +48,14 @@ export type Match = {
   sets_b: number;
   status: "scheduled" | "in_progress" | "done";
   played_at: string | null;
+  timer_started_at: string | null;
   is_demo: boolean;
   created_at: string;
 };
 
 export type TournamentMode = "box" | "swiss";
+
+export type ScoringMode = "sets" | "timed";
 
 export type Settings = {
   id: number;
@@ -61,6 +64,8 @@ export type Settings = {
   tournament_phase: TournamentPhase;
   tournament_mode: TournamentMode;
   public_live: boolean;
+  scoring_mode: ScoringMode;
+  match_minutes: number;
   current_round: number;
   total_courts: number;
   set_target: number;
@@ -107,6 +112,7 @@ export type Database = {
           | "is_fun"
           | "is_walkover"
           | "division"
+          | "timer_started_at"
         > & {
           id?: string;
           created_at?: string;
@@ -120,6 +126,7 @@ export type Database = {
           is_fun?: boolean;
           is_walkover?: boolean;
           division?: Division | null;
+          timer_started_at?: string | null;
         };
         Update: Partial<Omit<Match, "id" | "created_at">>;
         Relationships: [];
@@ -136,6 +143,8 @@ export type Database = {
           | "start_time"
           | "tournament_mode"
           | "public_live"
+          | "scoring_mode"
+          | "match_minutes"
         > & {
           updated_at?: string;
           total_cost?: number;
@@ -145,6 +154,8 @@ export type Database = {
           start_time?: string | null;
           tournament_mode?: TournamentMode;
           public_live?: boolean;
+          scoring_mode?: ScoringMode;
+          match_minutes?: number;
         };
         Update: Partial<Omit<Settings, "id">>;
         Relationships: [];
