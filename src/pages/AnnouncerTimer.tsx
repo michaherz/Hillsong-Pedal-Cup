@@ -27,6 +27,9 @@ const CLIP_URLS = {
   announce2: "/audio/announce2.mp3",
   announce3: "/audio/announce3.mp3",
   announce4: "/audio/announce4.mp3",
+  cheer1: "/audio/cheer1.mp3",
+  cheer2: "/audio/cheer2.mp3",
+  cheer3: "/audio/cheer3.mp3",
 } as const;
 type ClipKey = keyof typeof CLIP_URLS;
 
@@ -384,6 +387,28 @@ export default function AnnouncerTimer() {
               className="label-caps border-2 border-secondary px-4 py-2 text-secondary transition-colors hover:bg-secondary hover:text-deep-void"
             >
               {a.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Cheer buttons */}
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <span className="label-caps mr-1 text-on-surface-variant">
+            {t("timerCheerHeading")}
+          </span>
+          {(
+            [
+              { key: "cheer1" as const, label: t("timerCheer1") },
+              { key: "cheer2" as const, label: t("timerCheer2") },
+              { key: "cheer3" as const, label: t("timerCheer3") },
+            ]
+          ).map((c) => (
+            <button
+              key={c.key}
+              onClick={() => playClip(c.key)}
+              className="label-caps border-2 border-tertiary px-4 py-2 text-tertiary transition-colors hover:bg-tertiary hover:text-deep-void"
+            >
+              {c.label}
             </button>
           ))}
         </div>

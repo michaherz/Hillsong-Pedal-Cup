@@ -376,6 +376,10 @@ const STRINGS = {
     timerAnn2: "Ansage 2",
     timerAnn3: "Ansage 3",
     timerAnn4: "Ansage 4",
+    timerCheerHeading: "Cheers:",
+    timerCheer1: "Cheer 1",
+    timerCheer2: "Cheer 2",
+    timerCheer3: "Cheer 3",
     timerIosHint:
       "Der erste Tipp auf Start aktiviert den Ton auf diesem Geraet (iOS).",
     // generic
@@ -735,6 +739,10 @@ const STRINGS = {
     timerAnn2: "Call 2",
     timerAnn3: "Call 3",
     timerAnn4: "Call 4",
+    timerCheerHeading: "Cheers:",
+    timerCheer1: "Cheer 1",
+    timerCheer2: "Cheer 2",
+    timerCheer3: "Cheer 3",
     timerIosHint:
       "The first tap on Start enables sound on this device (iOS).",
     loadingShort: "Loading…",
