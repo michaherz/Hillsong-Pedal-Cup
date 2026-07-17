@@ -5,6 +5,7 @@ import { useT } from "../lib/i18n";
 
 const SOUND_KEY = "padel-cup-timer-sound";
 const PRESETS = [10, 12, 14, 15] as const;
+const LEAD_IN_MS = 5000; // whistle, then 5s get-ready before the clock runs
 
 // Markers we fire exactly once per run.
 type Marker = "start" | "half" | "twomin" | "end";
@@ -118,6 +119,7 @@ export default function AnnouncerTimer() {
   const [running, setRunning] = useState(false);
   const [finished, setFinished] = useState(false);
   const [remaining, setRemaining] = useState(14 * 60);
+  const [leadIn, setLeadIn] = useState(0); // seconds left in the get-ready phase
   const [soundOn, setSoundOn] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
     return window.localStorage.getItem(SOUND_KEY) !== "off";
@@ -190,7 +192,15 @@ export default function AnnouncerTimer() {
     const tick = () => {
       const startAt = startAtRef.current;
       if (startAt == null) return;
-      const elapsed = (Date.now() - startAt) / 1000;
+      const nowMs = Date.now();
+      // Lead-in phase: whistle already sounded, clock held at full until start.
+      if (nowMs < startAt) {
+        setLeadIn(Math.ceil((startAt - nowMs) / 1000));
+        setRemaining(total);
+        return;
+      }
+      setLeadIn(0);
+      const elapsed = (nowMs - startAt) / 1000;
       const rem = total - elapsed;
       setRemaining(rem > 0 ? rem : 0);
 
@@ -227,16 +237,18 @@ export default function AnnouncerTimer() {
     const total = minutes * 60;
     totalSecRef.current = total;
     firedRef.current = new Set<Marker>(["start"]);
-    startAtRef.current = Date.now();
+    startAtRef.current = Date.now() + LEAD_IN_MS; // clock runs after lead-in
     setRemaining(total);
+    setLeadIn(Math.ceil(LEAD_IN_MS / 1000));
     setFinished(false);
     setRunning(true);
-    cue(() => playClip("whistle")); // whistle at the start
+    cue(() => playClip("whistle")); // whistle immediately on start
   }
 
   function handleReset() {
     setRunning(false);
     setFinished(false);
+    setLeadIn(0);
     startAtRef.current = null;
     firedRef.current = new Set();
     totalSecRef.current = minutes * 60;
@@ -286,19 +298,27 @@ export default function AnnouncerTimer() {
       {/* Countdown */}
       <main className="flex flex-1 flex-col items-center justify-center gap-6 px-4 py-8">
         <p className="label-caps text-on-surface-variant">
-          {t("timerMinutesSet", { min: minutes })}
+          {leadIn > 0
+            ? t("timerGetReady")
+            : t("timerMinutesSet", { min: minutes })}
         </p>
         <div
           className={`select-none font-display uppercase leading-none tracking-tight ${
             finished
               ? "text-tertiary"
-              : running
-                ? "text-primary"
-                : "text-stadium-white"
+              : leadIn > 0
+                ? "text-secondary"
+                : running
+                  ? "text-primary"
+                  : "text-stadium-white"
           }`}
           style={{ fontSize: "clamp(5rem, 20vw, 22rem)" }}
         >
-          {finished ? t("timerTimeUp") : fmt(remaining)}
+          {finished
+            ? t("timerTimeUp")
+            : leadIn > 0
+              ? String(leadIn)
+              : fmt(remaining)}
         </div>
 
         {/* Minutes control (only when not running) */}
