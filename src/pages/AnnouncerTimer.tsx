@@ -10,7 +10,10 @@ const LEAD_IN_MS = 5000; // whistle, then 5s get-ready before the clock runs
 // Markers we fire exactly once per run.
 type Marker = "start" | "half" | "twomin" | "end";
 
-/* ------------------------------------------------ MP3 announcement clips */
+/* ------------------------------------------------ Announcement clips (Web Audio) */
+// Decode all clips into AudioBuffers up front and play them via the Web Audio
+// API. Only the AudioContext needs a one-time unlock (silent buffer) inside a
+// user gesture -- so there is NO audible "priming" burst on first Start.
 
 const CLIP_URLS = {
   whistle: "/audio/whistle.wav",
@@ -26,48 +29,66 @@ const CLIP_URLS = {
 } as const;
 type ClipKey = keyof typeof CLIP_URLS;
 
-const clipEls: Partial<Record<ClipKey, HTMLAudioElement>> = {};
+let audioCtx: AudioContext | null = null;
+const buffers: Partial<Record<ClipKey, AudioBuffer>> = {};
+let loadStarted = false;
 
-function getClip(key: ClipKey): HTMLAudioElement | null {
+function getCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
-  if (!clipEls[key]) {
-    const a = new Audio(CLIP_URLS[key]);
-    a.preload = "auto";
-    clipEls[key] = a;
-  }
-  return clipEls[key] ?? null;
+  const AC =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
+  if (!AC) return null;
+  if (!audioCtx) audioCtx = new AC();
+  return audioCtx;
 }
 
-// Prime clips inside a user gesture so iOS lets them play later.
-// (Skip the whistle -- it gets unlocked by actually playing at Start.)
-function primeClips() {
-  (Object.keys(CLIP_URLS) as ClipKey[]).forEach((k) => {
-    if (k === "whistle") return;
-    const a = getClip(k);
-    if (!a) return;
-    a.muted = true;
-    a.play()
-      .then(() => {
-        a.pause();
-        a.currentTime = 0;
-        a.muted = false;
-      })
-      .catch(() => {
-        a.muted = false;
-      });
+// Fetch + decode every clip once (works while the context is still suspended).
+function loadAllClips() {
+  const ctx = getCtx();
+  if (!ctx || loadStarted) return;
+  loadStarted = true;
+  (Object.keys(CLIP_URLS) as ClipKey[]).forEach(async (k) => {
+    try {
+      const res = await fetch(CLIP_URLS[k]);
+      const arr = await res.arrayBuffer();
+      buffers[k] = await ctx.decodeAudioData(arr);
+    } catch {
+      /* ignore -- clip stays unavailable, playback is a no-op */
+    }
   });
 }
 
-function playClip(key: ClipKey) {
-  const a = getClip(key);
-  if (!a) return;
+// One-time unlock inside a user gesture.
+function unlockCtx() {
+  const ctx = getCtx();
+  if (!ctx) return;
+  if (ctx.state === "suspended") void ctx.resume();
   try {
-    a.currentTime = 0;
+    const b = ctx.createBuffer(1, 1, 22050);
+    const s = ctx.createBufferSource();
+    s.buffer = b;
+    s.connect(ctx.destination);
+    s.start(0);
   } catch {
     /* ignore */
   }
-  a.muted = false;
-  void a.play().catch(() => {});
+}
+
+function playClip(key: ClipKey, onended?: () => void) {
+  const ctx = getCtx();
+  const buf = buffers[key];
+  if (!ctx || !buf) {
+    if (onended) onended();
+    return;
+  }
+  if (ctx.state === "suspended") void ctx.resume();
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.connect(ctx.destination);
+  if (onended) src.onended = onended;
+  src.start(0);
 }
 
 // Random one of the three end announcements.
@@ -78,27 +99,19 @@ function playEndClip() {
 
 // End: always the whistle; then the spruch only if withSpruch is true.
 function playEndSequence(withSpruch: boolean) {
-  const w = getClip("whistle");
-  if (!w) {
-    if (withSpruch) playEndClip();
+  if (!withSpruch) {
+    playClip("whistle");
     return;
   }
   let done = false;
   const go = () => {
-    if (done || !withSpruch) return;
+    if (done) return;
     done = true;
     playEndClip();
   };
-  w.onended = go;
-  try {
-    w.currentTime = 0;
-  } catch {
-    /* ignore */
-  }
-  w.muted = false;
-  w.play().catch(go);
-  // Fallback in case the 'ended' event does not fire.
-  if (withSpruch) window.setTimeout(go, 3500);
+  playClip("whistle", go);
+  // Fallback in case onended does not fire (e.g. whistle buffer missing).
+  window.setTimeout(go, 3500);
 }
 
 function fmt(totalSeconds: number): string {
@@ -160,6 +173,11 @@ export default function AnnouncerTimer() {
       endAnnounceOn ? "on" : "off",
     );
   }, [endAnnounceOn]);
+
+  // Decode all announcement clips up front (fetch/decode needs no gesture).
+  useEffect(() => {
+    loadAllClips();
+  }, []);
 
   const cue = useCallback((fn: () => void) => {
     if (soundRef.current) fn();
@@ -231,8 +249,8 @@ export default function AnnouncerTimer() {
   }, [running, cue]);
 
   function handleStart() {
-    // Prime mp3 clips inside the tap handler so iOS lets them play later.
-    primeClips();
+    // Unlock the audio context once inside the tap handler (no audible priming).
+    unlockCtx();
 
     const total = minutes * 60;
     totalSecRef.current = total;
