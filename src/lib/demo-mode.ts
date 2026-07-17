@@ -270,7 +270,8 @@ export async function resetDemo(): Promise<{ error: string | null }> {
 /**
  * FULL tournament reset (distinct from resetDemo). Deletes ALL matches (both
  * modes), resets phase -> registration + current_round -> 0, reactivates any
- * withdrawn teams and clears their division back to null. Keeps every team and
+ * withdrawn teams and clears their division back to null. Also clears the ready
+ * flag on every team. Keeps every team and
  * all registration data. Registration open/closed state is left untouched.
  */
 export async function resetTournament(): Promise<{ error: string | null }> {
@@ -281,10 +282,10 @@ export async function resetTournament(): Promise<{ error: string | null }> {
     .not("id", "is", null);
   if (delMatches.error) return { error: delMatches.error.message };
 
-  // 2) Reactivate withdrawn teams + clear division for all teams.
+  // 2) Reactivate withdrawn teams + clear division + clear ready for all teams.
   const updTeams = await supabase
     .from("teams")
-    .update({ status: "active", division: null })
+    .update({ status: "active", division: null, ready: false })
     .not("id", "is", null);
   if (updTeams.error) return { error: updTeams.error.message };
 

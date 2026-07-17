@@ -178,7 +178,25 @@ function Admin({ onSignOut }: { onSignOut: () => void }) {
               {t("adminTeamsHeading")}
             </h2>
             <p className="label-caps text-on-surface-variant">
-              {t("adminTotal", { count: teams?.length ?? 0 })}
+              {(() => {
+                const active = (teams ?? []).filter(
+                  (t) => t.status === "active",
+                );
+                const ready = active.filter((t) => t.ready).length;
+                return (
+                  <>
+                    {t("adminTotal", { count: teams?.length ?? 0 })}
+                    {ready > 0 && (
+                      <span className="ml-2 text-secondary">
+                        {t("teamReadyHint", {
+                          count: ready,
+                          total: active.length,
+                        })}
+                      </span>
+                    )}
+                  </>
+                );
+              })()}
             </p>
           </header>
           <AdminTeamTable
@@ -793,6 +811,15 @@ function AdminTeamRow({
     setBusy(false);
   }
 
+  async function toggleReady() {
+    setBusy(true);
+    await supabase
+      .from("teams")
+      .update({ ready: !team.ready })
+      .eq("id", team.id);
+    setBusy(false);
+  }
+
   if (editing) {
     return (
       <li className="bg-surface-container-high p-4">
@@ -897,6 +924,19 @@ function AdminTeamRow({
         )}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
+        {!withdrawn && (
+          <button
+            onClick={toggleReady}
+            disabled={busy}
+            className={`label-caps border-2 px-2 py-1 text-[10px] transition-colors ${
+              team.ready
+                ? "border-secondary bg-secondary text-on-secondary"
+                : "border-outline-variant text-on-surface-variant hover:border-secondary"
+            }`}
+          >
+            {t("teamReady")}
+          </button>
+        )}
         <button
           onClick={() => setEditing(true)}
           className="label-caps px-2 py-1 text-on-surface-variant transition-colors hover:text-primary"

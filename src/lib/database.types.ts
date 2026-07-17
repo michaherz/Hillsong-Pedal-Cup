@@ -20,6 +20,7 @@ export type Team = {
   skill_level: SkillLevel;
   status: "active" | "withdrawn";
   division: Division | null;
+  ready: boolean;
   is_demo: boolean;
   created_at: string;
 };
@@ -85,13 +86,14 @@ export type Database = {
         Row: Team;
         Insert: Omit<
           Team,
-          "id" | "created_at" | "status" | "is_demo" | "division"
+          "id" | "created_at" | "status" | "is_demo" | "division" | "ready"
         > & {
           id?: string;
           created_at?: string;
           status?: Team["status"];
           is_demo?: boolean;
           division?: Division | null;
+          ready?: boolean;
         };
         Update: Partial<Omit<Team, "id" | "created_at">>;
         Relationships: [];

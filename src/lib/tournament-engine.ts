@@ -551,14 +551,29 @@ export type SwissKOEntry = SwissPairing & {
   round: 1 | 2;
 };
 
-/** Round 1 — pair adjacent teams after sorting by skill (similar plays similar). */
+/** Round 1 — pair adjacent teams after sorting by skill (similar plays similar).
+ * The resulting pairings are then reordered by readiness so that matches between
+ * two ready teams come first, then those with one ready team, then none. buildSchedule
+ * assigns waves by pairing index, so ready-team matches land in the earliest waves.
+ * The (skill) order within each readiness group is preserved (stable). */
 export function seedRound1(teams: Team[]): SwissPairing[] {
-  const sorted = [...activeTeams(teams)].sort((a, b) => {
+  const active = activeTeams(teams);
+  const sorted = [...active].sort((a, b) => {
     const sd = SKILL_RANK[a.skill_level] - SKILL_RANK[b.skill_level];
     if (sd !== 0) return sd;
     return String(a.created_at ?? "").localeCompare(String(b.created_at ?? ""));
   });
-  return pairAdjacent(sorted.map((t) => t.id));
+  const pairings = pairAdjacent(sorted.map((t) => t.id));
+
+  // Readiness lookup + reorder (stable). Rank: both ready (0) < one ready (1) < none (2).
+  const readyById = new Map<string, boolean>();
+  for (const t of active) readyById.set(t.id, t.ready === true);
+  const rank = (p: SwissPairing): number =>
+    2 - (Number(readyById.get(p.teamA) ?? false) + Number(readyById.get(p.teamB) ?? false));
+  return pairings
+    .map((p, i) => ({ p, i, r: rank(p) }))
+    .sort((x, y) => x.r - y.r || x.i - y.i)
+    .map((x) => x.p);
 }
 
 /** Round 2+ — pair by current standings (winners play winners). */

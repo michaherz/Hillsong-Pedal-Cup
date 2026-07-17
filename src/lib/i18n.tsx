@@ -220,6 +220,9 @@ const STRINGS = {
     withdrawnBadge: "Zurueckgezogen",
     withdrawTeam: "Zurueckziehen",
     reactivate: "Reaktivieren",
+    // ready flag
+    teamReady: "Ready",
+    teamReadyHint: "{count} von {total} bereit",
     // runtime config
     configHeading: "Turnier-Konfiguration",
     configHint: "Wirkt sich auf den Spielplan-Generator + Kostenanzeige aus",
@@ -580,6 +583,9 @@ const STRINGS = {
     withdrawnBadge: "Withdrawn",
     withdrawTeam: "Withdraw",
     reactivate: "Reactivate",
+    // ready flag
+    teamReady: "Ready",
+    teamReadyHint: "{count} of {total} ready",
     // runtime config
     configHeading: "Tournament config",
     configHint: "Affects the schedule generator + cost display",
