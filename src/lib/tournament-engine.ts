@@ -576,9 +576,56 @@ export function seedRound1(teams: Team[]): SwissPairing[] {
     .map((x) => x.p);
 }
 
-/** Round 2+ — pair by current standings (winners play winners). */
-export function seedNextRound(standings: Standing[]): SwissPairing[] {
-  return pairAdjacent(standings.map((s) => s.teamId));
+/** Round 2+ — pair by standings (winners play winners), avoiding rematches.
+ * playedPairs = set of "a|b" (sorted) already-played pairings. Greedy: each team
+ * (top-down by standing) meets the nearest not-yet-played opponent; only if none
+ * is left does it fall back to the nearest available team (rematch as last resort). */
+export function seedNextRound(
+  standings: Standing[],
+  playedPairs?: Set<string>,
+): SwissPairing[] {
+  const ids = standings.map((s) => s.teamId);
+  if (!playedPairs) return pairAdjacent(ids);
+  const key = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+  const used = new Array(ids.length).fill(false);
+  const out: SwissPairing[] = [];
+  for (let i = 0; i < ids.length; i++) {
+    if (used[i]) continue;
+    used[i] = true;
+    let j = -1;
+    // Prefer the nearest opponent (by standing) not played yet.
+    for (let k = i + 1; k < ids.length; k++) {
+      if (used[k]) continue;
+      if (!playedPairs.has(key(ids[i], ids[k]))) {
+        j = k;
+        break;
+      }
+    }
+    // Fallback: nearest available team (allow a rematch if unavoidable).
+    if (j === -1) {
+      for (let k = i + 1; k < ids.length; k++) {
+        if (!used[k]) {
+          j = k;
+          break;
+        }
+      }
+    }
+    if (j === -1) break; // odd leftover -> bye
+    used[j] = true;
+    out.push({ teamA: ids[i], teamB: ids[j] });
+  }
+  return out;
+}
+
+/** Build the set of already-played "a|b" pairings from all matches with 2 teams. */
+export function playedPairSet(matches: Match[]): Set<string> {
+  const set = new Set<string>();
+  for (const m of matches) {
+    const a = m.team_a_id;
+    const b = m.team_b_id;
+    if (a && b) set.add(a < b ? `${a}|${b}` : `${b}|${a}`);
+  }
+  return set;
 }
 
 function pairAdjacent(ids: string[]): SwissPairing[] {

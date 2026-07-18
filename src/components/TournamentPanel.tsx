@@ -24,6 +24,7 @@ import {
   seedKOFinals,
   seedKOSemis,
   seedNextRound,
+  playedPairSet,
   seedRound1,
   swissFinalsComplete,
   swissSemisComplete,
@@ -489,7 +490,7 @@ function SwissTournamentPanel({ teams, matches, settings }: Props) {
     if (matches.some((m) => m.phase === "mexicano" && m.round === round + 1)) return;
     setBusy(true);
     setError(null);
-    const pairings = seedNextRound(standings);
+    const pairings = seedNextRound(standings, playedPairSet(matches));
     const schedule = buildSchedule(pairings, round + 1, courts);
     const inserts: MatchInsert[] = schedule.map((s) => ({
       round: s.round,
